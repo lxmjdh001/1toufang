@@ -215,7 +215,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
     return (
       <main className="admin-loading">
         <Spin size="large" />
-        <div className="brand">1Toufang</div>
+        <div className="brand">WzzAds</div>
         <p>正在进入中后台...</p>
       </main>
     );
@@ -225,9 +225,9 @@ export function AdminShell({ title, description, actions, children }: AdminShell
     <Layout className="semi-admin-layout">
       <Layout.Sider className="semi-admin-sider">
         <div className="semi-admin-brand">
-          <div className="semi-admin-logo">1T</div>
+          <div className="semi-admin-logo">WZ</div>
           <div>
-            <strong>1Toufang</strong>
+            <strong>WzzAds</strong>
             <span>Ads Ops</span>
           </div>
         </div>

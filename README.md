@@ -1,4 +1,4 @@
-# 1Toufang
+# WzzAds
 
 TikTok + Meta/Facebook 一键投放运营中台。
 
@@ -76,7 +76,7 @@ pnpm --filter @1toufang/database db:seed
 默认本地账号：
 
 ```text
-邮箱：admin@1toufang.local
+邮箱：admin@wzzads.local
 员工号：TF000001
 密码：Admin123456!
 ```

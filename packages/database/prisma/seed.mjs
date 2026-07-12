@@ -44,7 +44,7 @@ async function main() {
     });
   }
 
-  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@1toufang.local";
+  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@wzzads.local";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "Admin123456!";
   const employeeNo = process.env.SEED_ADMIN_EMPLOYEE_NO ?? "TF000001";
   const passwordHash = await bcrypt.hash(password, 12);
@@ -58,7 +58,7 @@ async function main() {
       profile: {
         create: {
           name: "Super Admin",
-          companyName: "1Toufang"
+          companyName: "WzzAds"
         }
       },
       reviewRequests: {
@@ -81,10 +81,11 @@ async function main() {
     where: { id: "seed-team" },
     create: {
       id: "seed-team",
-      name: "1Toufang Admin",
+      name: "WzzAds Admin",
       ownerId: user.id
     },
     update: {
+      name: "WzzAds Admin",
       ownerId: user.id
     }
   });

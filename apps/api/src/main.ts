@@ -32,7 +32,7 @@ async function bootstrap() {
   );
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("1toufang API")
+    .setTitle("WzzAds API")
     .setDescription("TikTok + Meta one-click ad operations API")
     .setVersion("0.1.0")
     .addBearerAuth()

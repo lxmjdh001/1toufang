@@ -13,7 +13,7 @@ export default function HomePage() {
 
   return (
     <main className="admin-loading">
-      <div className="brand">1Toufang</div>
+      <div className="brand">WzzAds</div>
       <p>正在进入系统...</p>
     </main>
   );

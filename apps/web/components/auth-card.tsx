@@ -14,8 +14,8 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
       <section className="auth-layout">
         <aside className="auth-brand-panel">
           <Link className="auth-brand" href="/">
-            <span>1T</span>
-            <strong>1Toufang</strong>
+            <span>WZ</span>
+            <strong>WzzAds</strong>
           </Link>
           <div className="auth-positioning">
             <p>跨渠道广告投放运营中台</p>
