@@ -1,0 +1,26 @@
+{
+  "name": "@1toufang/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000/api} next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@1toufang/shared": "workspace:*",
+    "@douyinfe/semi-icons": "^2.101.0",
+    "@douyinfe/semi-ui-19": "^2.101.0",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "^5.9.0"
+  }
+}

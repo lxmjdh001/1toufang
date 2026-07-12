@@ -1,0 +1,21 @@
+{
+  "name": "1toufang",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:api": "pnpm --filter @1toufang/api dev",
+    "dev:web": "pnpm --filter @1toufang/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @1toufang/database db:generate",
+    "db:migrate": "pnpm --filter @1toufang/database db:migrate",
+    "db:studio": "pnpm --filter @1toufang/database db:studio"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "prettier": "latest",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@1toufang/database",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./client": "./generated/client/index.js",
+    "./client/*": "./generated/client/*"
+  },
+  "typesVersions": {
+    "*": {
+      "client": ["generated/client/index.d.ts"],
+      "client/*": ["generated/client/*"]
+    }
+  },
+  "scripts": {
+    "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma migrate dev --schema prisma/schema.prisma",
+    "db:migrate:deploy": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma migrate deploy --schema prisma/schema.prisma",
+    "db:seed": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} node prisma/seed.mjs",
+    "db:studio": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma studio --schema prisma/schema.prisma",
+    "typecheck": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma validate --schema prisma/schema.prisma",
+    "build": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma validate --schema prisma/schema.prisma",
+    "lint": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} prisma validate --schema prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "bcryptjs": "latest"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}

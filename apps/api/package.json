@@ -1,0 +1,31 @@
+{
+  "name": "@1toufang/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "PORT=${PORT:-4000} WEB_URL=${WEB_URL:-http://localhost:3000} DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/one_toufang?schema=public} JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-dev-access-secret} JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dev-refresh-secret} nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@1toufang/database": "workspace:*",
+    "@nestjs/common": "latest",
+    "@nestjs/config": "latest",
+    "@nestjs/core": "latest",
+    "@nestjs/jwt": "latest",
+    "@nestjs/platform-express": "latest",
+    "@nestjs/swagger": "latest",
+    "bcryptjs": "latest",
+    "class-transformer": "latest",
+    "class-validator": "latest",
+    "reflect-metadata": "latest",
+    "rxjs": "latest"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "latest",
+    "@types/bcryptjs": "latest",
+    "typescript": "^5.9.0"
+  }
+}
