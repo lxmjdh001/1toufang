@@ -35,9 +35,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      API_URL: ${API_URL:-http://wzzads.com}
-      WEB_URL: ${WEB_URL:-http://wzzads.com}
-      WEB_URLS: ${WEB_URLS:-http://wzzads.com,http://www.wzzads.com}
+      API_URL: ${API_URL:-https://wzzads.com}
+      WEB_URL: ${WEB_URL:-https://wzzads.com}
+      WEB_URLS: ${WEB_URLS:-https://wzzads.com,http://wzzads.com}
       DATABASE_URL: postgresql://${POSTGRES_USER:-one_toufang}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-one_toufang}?schema=public
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
@@ -48,13 +48,13 @@ services:
       META_APP_SECRET: ${META_APP_SECRET:-}
       META_API_BASE_URL: ${META_API_BASE_URL:-https://graph.facebook.com}
       META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v25.0}
-      META_REDIRECT_URI: ${META_REDIRECT_URI:-http://wzzads.com/api/integrations/meta/callback}
+      META_REDIRECT_URI: ${META_REDIRECT_URI:-https://wzzads.com/api/integrations/meta/callback}
       META_SCOPES: ${META_SCOPES:-ads_management,ads_read,business_management,pages_read_engagement}
       TIKTOK_APP_ID: ${TIKTOK_APP_ID:-}
       TIKTOK_APP_SECRET: ${TIKTOK_APP_SECRET:-}
       TIKTOK_AUTH_URL: ${TIKTOK_AUTH_URL:-https://business-api.tiktok.com/portal/auth}
       TIKTOK_API_BASE_URL: ${TIKTOK_API_BASE_URL:-https://business-api.tiktok.com}
-      TIKTOK_REDIRECT_URI: ${TIKTOK_REDIRECT_URI:-http://wzzads.com/api/integrations/tiktok/callback}
+      TIKTOK_REDIRECT_URI: ${TIKTOK_REDIRECT_URI:-https://wzzads.com/api/integrations/tiktok/callback}
       TIKTOK_SCOPES: ${TIKTOK_SCOPES:-user.info.basic,biz.ad}
       PUBLISH_DRY_RUN: ${PUBLISH_DRY_RUN:-true}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@wzzads.com}
@@ -86,8 +86,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - web
       - api
