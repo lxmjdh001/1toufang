@@ -1,9 +1,9 @@
+name: 1toufang
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    env_file:
-      - ./production.env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-one_toufang}
       POSTGRES_USER: ${POSTGRES_USER:-one_toufang}
@@ -32,8 +32,6 @@ services:
       context: ..
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./production.env
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -42,6 +40,26 @@ services:
       WEB_URLS: ${WEB_URLS:-http://wzzads.com,http://www.wzzads.com}
       DATABASE_URL: postgresql://${POSTGRES_USER:-one_toufang}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-one_toufang}?schema=public
       REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_API_BASE_URL: ${META_API_BASE_URL:-https://graph.facebook.com}
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v25.0}
+      META_REDIRECT_URI: ${META_REDIRECT_URI:-http://wzzads.com/api/integrations/meta/callback}
+      META_SCOPES: ${META_SCOPES:-ads_management,ads_read,business_management,pages_read_engagement}
+      TIKTOK_APP_ID: ${TIKTOK_APP_ID:-}
+      TIKTOK_APP_SECRET: ${TIKTOK_APP_SECRET:-}
+      TIKTOK_AUTH_URL: ${TIKTOK_AUTH_URL:-https://business-api.tiktok.com/portal/auth}
+      TIKTOK_API_BASE_URL: ${TIKTOK_API_BASE_URL:-https://business-api.tiktok.com}
+      TIKTOK_REDIRECT_URI: ${TIKTOK_REDIRECT_URI:-http://wzzads.com/api/integrations/tiktok/callback}
+      TIKTOK_SCOPES: ${TIKTOK_SCOPES:-user.info.basic,biz.ad}
+      PUBLISH_DRY_RUN: ${PUBLISH_DRY_RUN:-true}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@wzzads.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SEED_ADMIN_EMPLOYEE_NO: ${SEED_ADMIN_EMPLOYEE_NO:-TF000001}
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,8 +73,6 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     restart: unless-stopped
-    env_file:
-      - ./production.env
     environment:
       NODE_ENV: production
       PORT: 3000
