@@ -6,7 +6,7 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { CopywritingsService } from "./copywritings.service";
-import { CreateCopywritingDto, UpdateCopywritingDto } from "./dto";
+import { CreateCopywritingDto, GenerateCopywritingDto, UpdateCopywritingDto } from "./dto";
 
 @ApiTags("Copywritings")
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -23,6 +23,16 @@ export class CopywritingsController {
   @Post()
   create(@Body() dto: CreateCopywritingDto, @CurrentUser() user: AuthenticatedUser) {
     return this.copywritingsService.create(dto, user);
+  }
+
+  @Post("generate")
+  generate(@Body() dto: GenerateCopywritingDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.copywritingsService.generate(dto, user);
+  }
+
+  @Post(":id/duplicate")
+  duplicate(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.copywritingsService.duplicate(id, user);
   }
 
   @Patch(":id")

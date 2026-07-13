@@ -174,6 +174,10 @@ model Team {
   landingPages        LandingPage[]
   offers              Offer[]
   domains             Domain[]
+  pwaApps             PwaApp[]
+  demands             Demand[]
+  visitorLogs         VisitorLog[]
+  conversionEvents    ConversionEvent[]
   campaigns           Campaign[]
   publishTasks        PublishTask[]
   platformIdMappings  PlatformIdMapping[]
@@ -499,6 +503,7 @@ model Offer {
   url       String
   price     Decimal? @db.Decimal(18, 4)
   status    String   @default("draft")
+  config    Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -510,10 +515,113 @@ model Domain {
   teamId    String
   domain    String
   status    String   @default("pending")
+  config    Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model PwaApp {
+  id        String   @id @default(cuid())
+  teamId    String
+  name      String
+  startUrl  String
+  status    String   @default("draft")
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model Demand {
+  id          String   @id @default(cuid())
+  teamId      String
+  title       String
+  type        String
+  priority    String   @default("normal")
+  status      String   @default("backlog")
+  description String?
+  tags        String[] @default([])
+  config      Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model VisitorLog {
+  id             String            @id @default(cuid())
+  teamId         String
+  requestId      String
+  campaignId     String?
+  adSetId        String?
+  adId           String?
+  landingPageId  String?
+  offerId        String?
+  pwaAppId       String?
+  domainId       String?
+  project        String?
+  ip             String?
+  country        String?
+  region         String?
+  city           String?
+  client         String?
+  device         String?
+  browser        String?
+  os             String?
+  referrer       String?
+  userAgent      String?
+  event1         Int               @default(0)
+  event2         Int               @default(0)
+  event3         Int               @default(0)
+  clickCost      Decimal?          @db.Decimal(18, 4)
+  conversionRate Decimal?          @db.Decimal(9, 4)
+  feedback       String?
+  metadata       Json?
+  visitAt        DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+
+  team           Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  conversions    ConversionEvent[]
+
+  @@index([teamId, visitAt])
+  @@index([requestId])
+  @@index([campaignId])
+  @@index([landingPageId])
+  @@index([offerId])
+}
+
+model ConversionEvent {
+  id            String      @id @default(cuid())
+  teamId        String
+  visitorLogId  String?
+  requestId     String?
+  campaignId    String?
+  adSetId       String?
+  adId          String?
+  landingPageId String?
+  offerId       String?
+  pwaAppId      String?
+  domainId      String?
+  eventName     String      @default("conversion")
+  eventValue    Decimal?    @db.Decimal(18, 4)
+  currency      String?
+  status        String      @default("confirmed")
+  feedback      String?
+  metadata      Json?
+  convertedAt   DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+
+  team          Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  visitorLog    VisitorLog? @relation(fields: [visitorLogId], references: [id], onDelete: SetNull)
+
+  @@index([teamId, convertedAt])
+  @@index([requestId])
+  @@index([campaignId])
+  @@index([landingPageId])
+  @@index([offerId])
 }
 
 model Campaign {

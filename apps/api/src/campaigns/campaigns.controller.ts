@@ -6,7 +6,7 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { CampaignsService } from "./campaigns.service";
-import { CreateCampaignDto, UpdateCampaignDto } from "./dto";
+import { BulkCampaignActionDto, CreateCampaignDto, UpdateCampaignBudgetDto, UpdateCampaignDto } from "./dto";
 
 @ApiTags("Campaigns")
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -24,6 +24,18 @@ export class CampaignsController {
   @RequirePermissions("campaigns.create")
   create(@Body() dto: CreateCampaignDto, @CurrentUser() user: AuthenticatedUser) {
     return this.campaignsService.create(dto, user);
+  }
+
+  @Post("bulk")
+  @RequirePermissions("campaigns.status.update")
+  bulk(@Body() dto: BulkCampaignActionDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.campaignsService.bulk(dto, user);
+  }
+
+  @Patch(":id/budget")
+  @RequirePermissions("campaigns.budget.update")
+  updateBudget(@Param("id") id: string, @Body() dto: UpdateCampaignBudgetDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.campaignsService.updateBudget(id, dto, user);
   }
 
   @Patch(":id")

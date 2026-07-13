@@ -6,7 +6,7 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { CreativesService } from "./creatives.service";
-import { CreateCreativeDto, UpdateCreativeDto } from "./dto";
+import { BulkCreativeTagsDto, CreateCreativeDto, UpdateCreativeDto } from "./dto";
 
 @ApiTags("Creatives")
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -23,6 +23,16 @@ export class CreativesController {
   @Post()
   create(@Body() dto: CreateCreativeDto, @CurrentUser() user: AuthenticatedUser) {
     return this.creativesService.create(dto, user);
+  }
+
+  @Post("bulk-tags")
+  bulkTags(@Body() dto: BulkCreativeTagsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.creativesService.bulkTags(dto, user);
+  }
+
+  @Post(":id/duplicate")
+  duplicate(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.creativesService.duplicate(id, user);
   }
 
   @Patch(":id")

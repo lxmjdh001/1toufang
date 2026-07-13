@@ -49,3 +49,15 @@ export class UpdateCreativeDto {
   @IsString()
   status?: string;
 }
+
+export class BulkCreativeTagsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  ids: string[];
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  tags: string[];
+}

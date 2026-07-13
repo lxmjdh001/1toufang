@@ -25,6 +25,11 @@ export class StrategiesController {
     return this.strategiesService.create(dto, user);
   }
 
+  @Post(":id/duplicate")
+  duplicate(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.strategiesService.duplicate(id, user);
+  }
+
   @Patch(":id")
   update(@Param("id") id: string, @Body() dto: UpdateStrategyDto, @CurrentUser() user: AuthenticatedUser) {
     return this.strategiesService.update(id, dto, user);

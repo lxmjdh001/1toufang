@@ -1,15 +1,19 @@
 "use client";
 
 import {
+  IconBell,
+  IconChevronDown,
   IconGallery,
   IconGlobe,
   IconHome,
+  IconLanguage,
+  IconSearch,
   IconSend,
   IconSetting
 } from "@douyinfe/semi-icons";
 import { Avatar, Button, Layout, Nav, Spin } from "@douyinfe/semi-ui-19";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { apiRequest, clearAuthTokens, getAccessToken } from "../lib/api";
 
 type AdminShellProps = {
@@ -27,6 +31,34 @@ type Me = {
     role?: { name: string } | null;
     team?: { name: string } | null;
   }> | null;
+};
+
+type SearchItem = {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  href: string;
+  updatedAt: string;
+};
+
+type SearchResponse = {
+  query: string;
+  items: SearchItem[];
+};
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  severity: "info" | "success" | "warning" | "danger" | string;
+  actionHref?: string | null;
+  createdAt: string;
+};
+
+type NotificationResponse = {
+  unread: number;
+  items: NotificationItem[];
 };
 
 let cachedToken: string | null = null;
@@ -69,7 +101,12 @@ const sections = [
     key: "workspace",
     label: "工作台",
     icon: <IconHome />,
-    links: [{ href: "/dashboard", label: "数据看板" }]
+    links: [
+      { href: "/dashboard", label: "数据看板" },
+      { href: "/demands", label: "需求池" },
+      { href: "/analytics", label: "访客分析" },
+      { href: "/conversions", label: "转化事件" }
+    ]
   },
   {
     key: "assets",
@@ -77,6 +114,8 @@ const sections = [
     icon: <IconGlobe />,
     links: [
       { href: "/integrations", label: "渠道授权" },
+      { href: "/channels/facebook", label: "Facebook 渠道" },
+      { href: "/channels/tiktok", label: "TikTok 渠道" },
       { href: "/ad-accounts", label: "广告账户" },
       { href: "/platform-assets", label: "渠道资产" }
     ]
@@ -88,7 +127,11 @@ const sections = [
     links: [
       { href: "/campaigns", label: "投放草稿" },
       { href: "/strategies", label: "策略模板" },
-      { href: "/targetings", label: "受众库" }
+      { href: "/targetings", label: "受众库" },
+      { href: "/landing-pages", label: "Money Pages" },
+      { href: "/offers", label: "Offers" },
+      { href: "/domains", label: "域名" },
+      { href: "/pwa-apps", label: "PWA" }
     ]
   },
   {
@@ -120,6 +163,14 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   const [me, setMe] = useState<Me | null>(() => getCachedMe(getAccessToken()));
   const [authChecked, setAuthChecked] = useState(() => Boolean(getCachedMe(getAccessToken())));
   const [openKeys, setOpenKeys] = useState<Array<string | number>>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationsAcknowledged, setNotificationsAcknowledged] = useState(false);
+  const [language, setLanguage] = useState("ZH");
 
   const activeKey = useMemo(() => {
     const links = sections.flatMap((section) => section.links);
@@ -202,14 +253,96 @@ export function AdminShell({ title, description, actions, children }: AdminShell
     }
   }, [authChecked, me, router]);
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem("wzzads-language");
+    if (stored === "EN" || stored === "ZH") {
+      setLanguage(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked || !me) return;
+
+    let active = true;
+    apiRequest<NotificationResponse>("/reports/notifications")
+      .then((response) => {
+        if (!active) return;
+        setNotifications(response.items);
+        setNotificationsAcknowledged(response.unread === 0);
+      })
+      .catch(() => {
+        if (active) setNotifications([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authChecked, me]);
+
+  useEffect(() => {
+    if (!authChecked || !me) return;
+    const keyword = searchTerm.trim();
+
+    if (!keyword) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    let active = true;
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      apiRequest<SearchResponse>(`/reports/search?q=${encodeURIComponent(keyword)}`)
+        .then((response) => {
+          if (!active) return;
+          setSearchResults(response.items);
+          setSearchOpen(true);
+        })
+        .catch(() => {
+          if (active) setSearchResults([]);
+        })
+        .finally(() => {
+          if (active) setSearching(false);
+        });
+    }, 220);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [authChecked, me, searchTerm]);
+
   function logout() {
     clearMeCache();
     clearAuthTokens();
     router.replace("/login");
   }
 
+  function openSearchItem(item: SearchItem) {
+    setSearchOpen(false);
+    setSearchTerm("");
+    router.push(item.href);
+  }
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const first = searchResults[0];
+    if (first) {
+      openSearchItem(first);
+    }
+  }
+
+  function toggleLanguage() {
+    const nextLanguage = language === "ZH" ? "EN" : "ZH";
+    setLanguage(nextLanguage);
+    window.localStorage.setItem("wzzads-language", nextLanguage);
+  }
+
   const currentEmployee = me?.employeeAccounts?.[0];
   const accountName = me?.profile?.name ?? me?.email ?? "Account";
+  const unreadCount = notificationsAcknowledged
+    ? 0
+    : notifications.filter((item) => item.severity !== "info").length;
 
   if (!authChecked && !me) {
     return (
@@ -253,22 +386,113 @@ export function AdminShell({ title, description, actions, children }: AdminShell
       </Layout.Sider>
       <Layout className="semi-admin-main">
         <Layout.Header className="semi-admin-header">
-          <div className="semi-admin-account">
-            <Avatar size="small" color="blue">
-              {accountName.slice(0, 1).toUpperCase()}
-            </Avatar>
-            <div>
-              <strong>{accountName}</strong>
-              <span>
-                {currentEmployee?.team?.name ?? "未选择团队"}
-                {currentEmployee?.role?.name ? ` / ${currentEmployee.role.name}` : ""}
-                {currentEmployee?.employeeNo ? ` / ${currentEmployee.employeeNo}` : ""}
-              </span>
-            </div>
+          <div className="semi-admin-header-left">
+            <form className="global-search" onSubmit={submitSearch}>
+              <IconSearch />
+              <input
+                aria-label="全局搜索"
+                onBlur={() => window.setTimeout(() => setSearchOpen(false), 140)}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                onFocus={() => {
+                  if (searchTerm.trim()) setSearchOpen(true);
+                }}
+                placeholder="搜索 Campaign / 账户 / 素材"
+                value={searchTerm}
+              />
+              {searching ? <span className="global-search-status">搜索中</span> : null}
+              {searchOpen && searchTerm.trim() ? (
+                <div className="global-search-popover">
+                  {searchResults.length ? (
+                    searchResults.map((item) => (
+                      <button
+                        className="global-search-item"
+                        key={`${item.type}-${item.id}`}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          openSearchItem(item);
+                        }}
+                        type="button"
+                      >
+                        <span className="pill">{item.type}</span>
+                        <strong>{item.title}</strong>
+                        <small>{item.description || item.href}</small>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="global-search-empty">{searching ? "正在搜索..." : "没有匹配结果"}</div>
+                  )}
+                </div>
+              ) : null}
+            </form>
           </div>
-          <Button theme="borderless" onClick={logout} type="tertiary">
-            退出登录
-          </Button>
+          <div className="semi-admin-header-right">
+            <button className="header-tool language-tool" onClick={toggleLanguage} title="语言切换" type="button">
+              <IconLanguage />
+              <span>{language}</span>
+              <IconChevronDown />
+            </button>
+            <div className="notification-wrap">
+              <button
+                className="header-tool icon-tool"
+                onClick={() => {
+                  setNotificationOpen((current) => !current);
+                  setNotificationsAcknowledged(true);
+                }}
+                title="通知"
+                type="button"
+              >
+                <IconBell />
+                {unreadCount ? <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
+              </button>
+              {notificationOpen ? (
+                <div className="notification-popover">
+                  <div className="notification-head">
+                    <strong>通知</strong>
+                    <button onClick={() => setNotificationsAcknowledged(true)} type="button">
+                      全部已读
+                    </button>
+                  </div>
+                  <div className="notification-list">
+                    {notifications.length ? (
+                      notifications.map((item) => (
+                        <button
+                          className={`notification-item ${item.severity}`}
+                          key={item.id}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            setNotificationOpen(false);
+                            if (item.actionHref) router.push(item.actionHref);
+                          }}
+                          type="button"
+                        >
+                          <strong>{item.title}</strong>
+                          <span>{item.message}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="notification-empty">暂无通知</div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="semi-admin-account">
+              <Avatar size="small" color="blue">
+                {accountName.slice(0, 1).toUpperCase()}
+              </Avatar>
+              <div>
+                <strong>{accountName}</strong>
+                <span>
+                  {currentEmployee?.team?.name ?? "未选择团队"}
+                  {currentEmployee?.role?.name ? ` / ${currentEmployee.role.name}` : ""}
+                  {currentEmployee?.employeeNo ? ` / ${currentEmployee.employeeNo}` : ""}
+                </span>
+              </div>
+            </div>
+            <Button theme="borderless" onClick={logout} type="tertiary">
+              退出登录
+            </Button>
+          </div>
         </Layout.Header>
         <Layout.Content className="admin-content semi-admin-content">
           <div className="page-heading semi-page-heading">

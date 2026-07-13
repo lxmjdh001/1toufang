@@ -4,14 +4,16 @@ import {
   Platform,
   PlatformObjectType,
   Prisma,
+  PublishTaskStatus,
   PublishStatus,
   ReportSyncStatus,
-  TeamMemberStatus
+  TeamMemberStatus,
+  UserStatus
 } from "@1toufang/database/client";
 import { SecretCryptoService } from "../common/crypto/secret-crypto.service";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { DatabaseService } from "../database/database.service";
-import { DryRunReportSyncDto, ReportOverviewQueryDto, ReportSyncDto } from "./reports.dto";
+import { DryRunReportSyncDto, GlobalSearchQueryDto, ReportOverviewQueryDto, ReportSyncDto } from "./reports.dto";
 
 type Totals = {
   spend: number;
@@ -196,6 +198,288 @@ export class ReportsService {
         finishedAt: run.finishedAt,
         createdAt: run.createdAt
       }))
+    };
+  }
+
+  async dashboard(query: ReportOverviewQueryDto, user: AuthenticatedUser) {
+    const teamId = await this.resolveTeamId(user);
+    const range = this.resolveDateRange(query.startDate, query.endDate);
+    const adAccountWhere = {
+      teamId,
+      ...(query.platform ? { platform: query.platform } : {}),
+      ...(query.adAccountId ? { id: query.adAccountId } : {})
+    };
+    const statsWhere = {
+      teamId,
+      date: { gte: range.start, lte: range.end },
+      ...(query.platform ? { platform: query.platform } : {}),
+      ...(query.adAccountId ? { adAccountId: query.adAccountId } : {})
+    };
+
+    const [adAccounts, accountStats, campaignStats, visitorRows, conversionRows, automationLogs, notifications] = await Promise.all([
+      this.db.adAccount.findMany({
+        where: adAccountWhere,
+        select: {
+          id: true,
+          name: true,
+          platform: true,
+          currency: true,
+          balance: true,
+          updatedAt: true
+        }
+      }),
+      this.db.accountDailyStat.findMany({
+        where: statsWhere,
+        orderBy: { date: "asc" }
+      }),
+      this.db.campaignDailyStat.findMany({
+        where: {
+          teamId,
+          date: { gte: range.start, lte: range.end },
+          ...(query.platform ? { platform: query.platform } : {}),
+          ...(query.adAccountId ? { adAccountId: query.adAccountId } : {}),
+          ...(query.campaignId ? { campaignId: query.campaignId } : {})
+        },
+        orderBy: { date: "asc" }
+      }),
+      this.db.visitorLog.findMany({
+        where: {
+          teamId,
+          visitAt: { gte: range.start, lte: range.end },
+          ...(query.campaignId ? { campaignId: query.campaignId } : {})
+        },
+        select: { id: true, visitAt: true }
+      }),
+      this.db.conversionEvent.findMany({
+        where: {
+          teamId,
+          convertedAt: { gte: range.start, lte: range.end },
+          ...(query.campaignId ? { campaignId: query.campaignId } : {})
+        },
+        select: { id: true, convertedAt: true }
+      }),
+      this.db.auditLog.findMany({
+        where: {
+          teamId,
+          OR: [
+            { action: { contains: "AI", mode: Prisma.QueryMode.insensitive } },
+            { action: { contains: "AUTOMATION", mode: Prisma.QueryMode.insensitive } },
+            { action: { contains: "PUBLISH", mode: Prisma.QueryMode.insensitive } },
+            { action: { contains: "REPORT", mode: Prisma.QueryMode.insensitive } }
+          ]
+        },
+        orderBy: { createdAt: "desc" },
+        take: 6
+      }),
+      this.buildNotifications(teamId)
+    ]);
+
+    const currency = dominantCurrency(adAccounts.map((account) => account.currency)) ?? "USD";
+    const adAccountBalance = roundMoney(adAccounts.reduce((sum, account) => sum + money(account.balance), 0));
+    const spendRows = accountStats.length ? accountStats : campaignStats;
+    const spendTotals = emptyTotals();
+    const spendSeries = new Map(range.days.map((day) => [dateKey(day), emptyTotals()]));
+    const visitorSeries = new Map(range.days.map((day) => [dateKey(day), { visitors: 0, conversions: 0 }]));
+
+    for (const row of spendRows) {
+      const metric = {
+        spend: money(row.spend),
+        impressions: row.impressions,
+        clicks: row.clicks,
+        conversions: row.conversions,
+        revenue: money(row.revenue)
+      };
+      addTotals(spendTotals, metric);
+      const dayTotals = spendSeries.get(dateKey(row.date));
+      if (dayTotals) addTotals(dayTotals, metric);
+    }
+
+    for (const row of visitorRows) {
+      const dayTotals = visitorSeries.get(dateKey(row.visitAt));
+      if (dayTotals) dayTotals.visitors += 1;
+    }
+
+    for (const row of conversionRows) {
+      const dayTotals = visitorSeries.get(dateKey(row.convertedAt));
+      if (dayTotals) dayTotals.conversions += 1;
+    }
+
+    return {
+      range: {
+        startDate: dateKey(range.start),
+        endDate: dateKey(range.end)
+      },
+      wallet: {
+        balance: 0,
+        currency,
+        status: "not_configured",
+        note: "钱包账务模块尚未接入，后续可连接充值、扣费和发票流水"
+      },
+      adAccountBalance: {
+        balance: adAccountBalance,
+        currency,
+        accountCount: adAccounts.length,
+        lastSyncedAt: latestDate(adAccounts.map((account) => account.updatedAt))
+      },
+      adAccountSpend: {
+        currency,
+        source: accountStats.length ? "account_daily_stats" : "campaign_daily_stats",
+        ...withRates(spendTotals)
+      },
+      visitors: {
+        total: visitorRows.length,
+        conversions: conversionRows.length,
+        conversionRate: visitorRows.length ? roundMoney((conversionRows.length / visitorRows.length) * 100) : 0,
+        status: visitorRows.length ? "tracking_active" : "tracking_ready",
+        note: visitorRows.length ? "访客埋点已接入，正在统计站点侧访问与转化" : "访客埋点已可用，等待站点上报访问数据",
+        series: Array.from(visitorSeries.entries()).map(([date, metric]) => ({ date, ...metric }))
+      },
+      spendSeries: Array.from(spendSeries.entries()).map(([date, metric]) => ({
+        date,
+        ...withRates(metric)
+      })),
+      aiLogs: automationLogs.map((log) => ({
+        id: log.id,
+        title: actionTitle(log.action),
+        message: actionMessage(log.action),
+        status: actionSeverity(log.action),
+        action: log.action,
+        createdAt: log.createdAt
+      })),
+      notifications
+    };
+  }
+
+  async search(query: GlobalSearchQueryDto, user: AuthenticatedUser) {
+    const teamId = await this.resolveTeamId(user);
+    const keyword = (query.q ?? "").trim();
+    if (!keyword) return { query: keyword, items: [] };
+
+    const contains = { contains: keyword, mode: Prisma.QueryMode.insensitive };
+    const [
+      campaigns,
+      adAccounts,
+      integrations,
+      platformAssets,
+      mediaAssets,
+      copywritings,
+      creatives,
+      strategies,
+      targetings,
+      pwaApps,
+      demands
+    ] = await Promise.all([
+      this.db.campaign.findMany({
+        where: { teamId, name: contains },
+        select: { id: true, name: true, platform: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 5
+      }),
+      this.db.adAccount.findMany({
+        where: {
+          teamId,
+          OR: [{ name: contains }, { externalId: contains }, { status: contains }]
+        },
+        select: { id: true, name: true, externalId: true, platform: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 5
+      }),
+      this.db.integrationAccount.findMany({
+        where: {
+          teamId,
+          OR: [{ name: contains }, { externalId: contains }, { status: contains }]
+        },
+        select: { id: true, name: true, externalId: true, platform: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.platformAsset.findMany({
+        where: {
+          teamId,
+          OR: [{ name: contains }, { externalId: contains }, { status: contains }]
+        },
+        select: { id: true, name: true, externalId: true, platform: true, type: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.mediaAsset.findMany({
+        where: { teamId, OR: [{ name: contains }, { fileType: contains }, { url: contains }] },
+        select: { id: true, name: true, fileType: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.copywriting.findMany({
+        where: { teamId, OR: [{ name: contains }, { headline: contains }, { primaryText: contains }] },
+        select: { id: true, name: true, headline: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.adCreative.findMany({
+        where: { teamId, OR: [{ name: contains }, { status: contains }] },
+        select: { id: true, name: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.strategy.findMany({
+        where: { teamId, OR: [{ name: contains }, { notes: contains }] },
+        select: { id: true, name: true, platform: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.targeting.findMany({
+        where: { teamId, name: contains },
+        select: { id: true, name: true, platform: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.pwaApp.findMany({
+        where: { teamId, OR: [{ name: contains }, { startUrl: contains }, { status: contains }] },
+        select: { id: true, name: true, startUrl: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      }),
+      this.db.demand.findMany({
+        where: {
+          teamId,
+          OR: [{ title: contains }, { type: contains }, { priority: contains }, { status: contains }, { description: contains }]
+        },
+        select: { id: true, title: true, type: true, priority: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 4
+      })
+    ]);
+
+    const items = [
+      ...campaigns.map((row) => searchItem(row.id, "Campaign", row.name, `${row.platform} / ${row.status}`, "/campaigns", row.updatedAt)),
+      ...adAccounts.map((row) =>
+        searchItem(row.id, "广告账户", row.name, `${row.platform} / ${row.externalId}`, "/ad-accounts", row.updatedAt)
+      ),
+      ...integrations.map((row) =>
+        searchItem(row.id, "渠道授权", row.name, `${row.platform} / ${row.status}`, "/integrations", row.updatedAt)
+      ),
+      ...platformAssets.map((row) =>
+        searchItem(row.id, "渠道资产", row.name, `${row.platform} / ${row.type}`, "/platform-assets", row.updatedAt)
+      ),
+      ...mediaAssets.map((row) => searchItem(row.id, "素材", row.name, row.fileType, "/media-assets", row.updatedAt)),
+      ...copywritings.map((row) => searchItem(row.id, "文案", row.name, row.headline, "/copywritings", row.updatedAt)),
+      ...creatives.map((row) => searchItem(row.id, "创意", row.name, row.status, "/creatives", row.updatedAt)),
+      ...strategies.map((row) => searchItem(row.id, "策略", row.name, row.platform, "/strategies", row.updatedAt)),
+      ...targetings.map((row) => searchItem(row.id, "受众", row.name, row.platform, "/targetings", row.updatedAt)),
+      ...pwaApps.map((row) => searchItem(row.id, "PWA", row.name, `${row.status} / ${row.startUrl}`, "/pwa-apps", row.updatedAt)),
+      ...demands.map((row) => searchItem(row.id, "需求", row.title, `${row.type} / ${row.priority} / ${row.status}`, "/demands", row.updatedAt))
+    ]
+      .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+      .slice(0, 12);
+
+    return { query: keyword, items };
+  }
+
+  async notifications(user: AuthenticatedUser) {
+    const teamId = await this.resolveTeamId(user);
+    const items = await this.buildNotifications(teamId);
+    return {
+      unread: items.filter((item) => item.severity !== "info").length,
+      items
     };
   }
 
@@ -819,6 +1103,112 @@ export class ReportsService {
     return membership.teamId;
   }
 
+  private async buildNotifications(teamId: string) {
+    const [metaIntegrations, tiktokIntegrations, adAccountCount, pendingUserCount, failedSyncRuns, failedPublishTasks] =
+      await Promise.all([
+        this.db.integrationAccount.count({
+          where: { teamId, platform: Platform.META, status: { in: ["active", "manual"] } }
+        }),
+        this.db.integrationAccount.count({
+          where: { teamId, platform: Platform.TIKTOK, status: { in: ["active", "manual"] } }
+        }),
+        this.db.adAccount.count({ where: { teamId } }),
+        this.db.user.count({ where: { status: UserStatus.PENDING_REVIEW } }),
+        this.db.reportSyncRun.findMany({
+          where: { teamId, status: ReportSyncStatus.FAILED },
+          include: { adAccount: true },
+          orderBy: { createdAt: "desc" },
+          take: 3
+        }),
+        this.db.publishTask.findMany({
+          where: { teamId, status: PublishTaskStatus.FAILED },
+          include: { campaign: true },
+          orderBy: { createdAt: "desc" },
+          take: 3
+        })
+      ]);
+
+    const items = [];
+    const now = new Date();
+
+    if (!metaIntegrations) {
+      items.push({
+        id: "connect-meta",
+        title: "Meta / Facebook 尚未连接",
+        message: "连接 Facebook 后可以同步广告账户、Page、Pixel，并进入正式发布链路。",
+        severity: "warning",
+        actionHref: "/integrations?platform=META",
+        createdAt: now
+      });
+    }
+
+    if (!tiktokIntegrations) {
+      items.push({
+        id: "connect-tiktok",
+        title: "TikTok 尚未连接",
+        message: "连接 TikTok 开发者应用后可以同步 advertiser 和投放资产。",
+        severity: "info",
+        actionHref: "/integrations?platform=TIKTOK",
+        createdAt: now
+      });
+    }
+
+    if (!adAccountCount) {
+      items.push({
+        id: "sync-ad-accounts",
+        title: "广告账户资产为空",
+        message: "完成渠道授权后，请同步广告账户，控制面板才能展示账户余额和真实消耗。",
+        severity: "warning",
+        actionHref: "/ad-accounts",
+        createdAt: now
+      });
+    }
+
+    if (pendingUserCount) {
+      items.push({
+        id: "pending-users",
+        title: `${pendingUserCount} 个注册用户待审核`,
+        message: "用户审核通过后才可以正式登录中后台。",
+        severity: "warning",
+        actionHref: "/admin/users",
+        createdAt: now
+      });
+    }
+
+    items.push({
+      id: "visitor-tracking",
+      title: "访客统计未接入",
+      message: "落地页埋点与访客日报表尚未开发，当前访客数显示为 0。",
+      severity: "info",
+      actionHref: "/dashboard",
+      createdAt: now
+    });
+
+    for (const run of failedSyncRuns) {
+      items.push({
+        id: `report-sync-${run.id}`,
+        title: "报表同步失败",
+        message: `${run.adAccount?.name ?? run.platform ?? "ALL"}：${run.message ?? "请检查渠道授权与账户权限"}`,
+        severity: "danger",
+        actionHref: "/dashboard",
+        createdAt: run.createdAt
+      });
+    }
+
+    for (const task of failedPublishTasks) {
+      items.push({
+        id: `publish-task-${task.id}`,
+        title: "Campaign 发布失败",
+        message: `${task.campaign.name}：${task.errorMessage ?? "请进入投放草稿查看发布任务"}`,
+        severity: "danger",
+        actionHref: "/campaigns",
+        createdAt: task.createdAt
+      });
+    }
+
+    return items.slice(0, 10);
+  }
+
   private audit(actorId: string, teamId: string, action: string, entityId: string, metadata: Record<string, unknown>) {
     return this.db.auditLog.create({
       data: {
@@ -1005,6 +1395,57 @@ function isPresent<T>(value: T | null | undefined): value is T {
 
 function unique<T>(values: T[]) {
   return Array.from(new Set(values));
+}
+
+function dominantCurrency(values: Array<string | null | undefined>) {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    if (!value) continue;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
+}
+
+function latestDate(values: Date[]) {
+  const latest = values.reduce<Date | null>((current, value) => {
+    if (!current || value.getTime() > current.getTime()) return value;
+    return current;
+  }, null);
+  return latest;
+}
+
+function searchItem(id: string, type: string, title: string, description: string | null | undefined, href: string, updatedAt: Date) {
+  return {
+    id,
+    type,
+    title,
+    description: description ?? "",
+    href,
+    updatedAt
+  };
+}
+
+function actionTitle(action: string) {
+  if (action.includes("PUBLISH") && action.includes("FAILED")) return "发布任务失败";
+  if (action.includes("PUBLISH")) return "发布链路更新";
+  if (action.includes("REPORT") && action.includes("FAILED")) return "报表同步失败";
+  if (action.includes("REPORT")) return "报表同步完成";
+  if (action.includes("AUTOMATION")) return "规则自动化执行";
+  if (action.includes("AI")) return "AI 助手事件";
+  return "系统自动化日志";
+}
+
+function actionMessage(action: string) {
+  if (action.includes("FAILED")) return "自动化动作执行失败，请进入相关模块查看详情。";
+  if (action.includes("REPORT")) return "报表数据已写入看板，可用于投放分析。";
+  if (action.includes("PUBLISH")) return "发布链路状态发生变化。";
+  return "固定规则自动化留下的操作记录。";
+}
+
+function actionSeverity(action: string) {
+  if (action.includes("FAILED")) return "danger";
+  if (action.includes("SUCCEEDED") || action.includes("SYNCED")) return "success";
+  return "info";
 }
 
 function providerErrorMessage(body: unknown, fallback: string) {

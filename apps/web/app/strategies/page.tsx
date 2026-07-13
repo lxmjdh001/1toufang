@@ -16,6 +16,8 @@ type StrategyConfig = {
   billingEvent?: string;
   placementMode?: string;
   namingRule?: string;
+  version?: number;
+  versionHistory?: unknown[];
 };
 
 type StrategyRow = {
@@ -24,6 +26,8 @@ type StrategyRow = {
   name: string;
   notes?: string | null;
   config: StrategyConfig;
+  version?: number;
+  usageCount?: number;
   createdAt: string;
   updatedAt: string;
   createdBy?: { email: string; profile?: { name?: string | null } | null } | null;
@@ -106,22 +110,52 @@ function buildPayload(draft: StrategyDraft) {
   };
 }
 
+function creatorName(row: StrategyRow) {
+  return row.createdBy?.profile?.name ?? row.createdBy?.email ?? "-";
+}
+
+function versionOf(row: StrategyRow) {
+  return row.version ?? row.config.version ?? 1;
+}
+
 export default function StrategiesPage() {
   const [rows, setRows] = useState<StrategyRow[]>([]);
   const [draft, setDraft] = useState<StrategyDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [platformFilter, setPlatformFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const metaCount = useMemo(() => rows.filter((row) => row.platform === "META").length, [rows]);
   const tiktokCount = rows.length - metaCount;
+  const usedCount = useMemo(() => rows.filter((row) => Number(row.usageCount ?? 0) > 0).length, [rows]);
+  const selectedStrategy = useMemo(() => rows.find((row) => row.id === selectedId) ?? rows[0] ?? null, [rows, selectedId]);
+  const visibleRows = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    return rows.filter((row) => {
+      const matchesPlatform = !platformFilter || row.platform === platformFilter;
+      const matchesKeyword =
+        !keyword ||
+        row.name.toLowerCase().includes(keyword) ||
+        row.config.objective?.toLowerCase().includes(keyword) ||
+        row.config.optimizationGoal?.toLowerCase().includes(keyword) ||
+        row.notes?.toLowerCase().includes(keyword);
+      return matchesPlatform && matchesKeyword;
+    });
+  }, [platformFilter, rows, searchTerm]);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      setRows(await apiRequest<StrategyRow[]>("/strategies"));
+      const nextRows = await apiRequest<StrategyRow[]>("/strategies");
+      setRows(nextRows);
+      setSelectedId((current) => (current && nextRows.some((row) => row.id === current) ? current : nextRows[0]?.id ?? null));
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载策略模板失败");
     } finally {
@@ -133,11 +167,14 @@ export default function StrategiesPage() {
     event.preventDefault();
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
-      await apiRequest(editingId ? `/strategies/${editingId}` : "/strategies", {
+      const row = await apiRequest<StrategyRow>(editingId ? `/strategies/${editingId}` : "/strategies", {
         method: editingId ? "PATCH" : "POST",
         body: JSON.stringify(buildPayload(draft))
       });
+      setNotice(editingId ? "策略已更新并生成新版本" : "策略已创建");
+      setSelectedId(row.id);
       resetForm();
       await load();
     } catch (err) {
@@ -148,19 +185,39 @@ export default function StrategiesPage() {
   }
 
   async function remove(row: StrategyRow) {
+    if (!window.confirm(`确认删除策略 ${row.name}？`)) return;
     setError(null);
     try {
       await apiRequest(`/strategies/${row.id}`, { method: "DELETE" });
       if (editingId === row.id) resetForm();
+      if (selectedId === row.id) setSelectedId(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除策略模板失败");
     }
   }
 
+  async function duplicate(row: StrategyRow) {
+    setBusyId(row.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const next = await apiRequest<StrategyRow>(`/strategies/${row.id}/duplicate`, { method: "POST" });
+      setNotice("策略已复制");
+      setSelectedId(next.id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "复制策略失败");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function edit(row: StrategyRow) {
     setEditingId(row.id);
+    setSelectedId(row.id);
     setDraft(draftFromRow(row));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function resetForm() {
@@ -181,18 +238,18 @@ export default function StrategiesPage() {
       title="策略模板"
       description="沉淀 Meta 和 TikTok 的预算、版位、出价、命名规则等投放模板。"
       actions={
-        <>
-          <button className="button secondary" onClick={resetForm} type="button">
-            新建模板
+        <div className="button-row">
+          <button className="button primary" onClick={resetForm} type="button">
+            创建 Strategy
           </button>
-          <button className="button secondary" onClick={load} type="button">
+          <button className="button secondary" onClick={() => void load()} type="button">
             刷新
           </button>
-        </>
+        </div>
       }
     >
-      <section className="metric-grid">
-        <div className="metric">
+      <section className="metric-grid compact-metrics">
+        <div className="metric metric-strong">
           <span>模板总数</span>
           <strong>{rows.length}</strong>
         </div>
@@ -204,22 +261,27 @@ export default function StrategiesPage() {
           <span>TikTok</span>
           <strong>{tiktokCount}</strong>
         </div>
+        <div className="metric">
+          <span>已用于 Campaign</span>
+          <strong>{usedCount}</strong>
+        </div>
       </section>
 
       {loading ? <div className="notice success">加载中...</div> : null}
+      {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>{editingId ? "编辑模板" : "新增模板"}</h2>
-            <p>策略模板会作为后续一键创建 Campaign 的默认投放规则。</p>
+            <h2>{editingId ? "编辑 Strategy" : "创建 Strategy"}</h2>
+            <p>策略保存后可以在 Campaign 创建页直接引用。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="strategyPlatform">平台</label>
+              <label htmlFor="strategyPlatform">Channel</label>
               <select
                 id="strategyPlatform"
                 onChange={(event) => updateDraft("platform", event.target.value as Platform)}
@@ -230,7 +292,7 @@ export default function StrategiesPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="strategyName">模板名称</label>
+              <label htmlFor="strategyName">名称</label>
               <input
                 id="strategyName"
                 onChange={(event) => updateDraft("name", event.target.value)}
@@ -327,7 +389,7 @@ export default function StrategiesPage() {
           </div>
           <div className="button-row">
             <button className="button primary" disabled={saving} type="submit">
-              {saving ? "保存中..." : editingId ? "保存修改" : "保存模板"}
+              {saving ? "保存中..." : editingId ? "保存新版本" : "保存模板"}
             </button>
             {editingId ? (
               <button className="button secondary" onClick={resetForm} type="button">
@@ -338,55 +400,146 @@ export default function StrategiesPage() {
         </form>
       </section>
 
-      <section className="table-panel">
-        <table>
-          <thead>
-            <tr>
-              <th>模板名称</th>
-              <th>平台</th>
-              <th>投放目标</th>
-              <th>预算/出价</th>
-              <th>优化目标</th>
-              <th>更新时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <strong>{row.name}</strong>
-                  <br />
-                  <span className="muted">{row.notes || row.config.namingRule || "-"}</span>
-                </td>
-                <td>{row.platform}</td>
-                <td>{row.config.objective ?? "-"}</td>
-                <td>
-                  <strong>{row.config.dailyBudget ? `${row.config.dailyBudget}` : "-"}</strong>
-                  <br />
-                  <span className="muted">{row.config.bidStrategy ?? "-"}</span>
-                </td>
-                <td>{row.config.optimizationGoal ?? "-"}</td>
-                <td>{formatDate(row.updatedAt)}</td>
-                <td>
-                  <div className="button-row">
-                    <button className="button secondary" onClick={() => edit(row)} type="button">
-                      编辑
-                    </button>
-                    <button className="button danger" onClick={() => void remove(row)} type="button">
-                      删除
-                    </button>
+      <section className="strategy-layout">
+        <div>
+          <section className="panel strategy-filter-panel">
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="strategySearch">搜索</label>
+                <input id="strategySearch" onChange={(event) => setSearchTerm(event.target.value)} value={searchTerm} />
+              </div>
+              <div className="field">
+                <label htmlFor="strategyPlatformFilter">Channel</label>
+                <select id="strategyPlatformFilter" onChange={(event) => setPlatformFilter(event.target.value)} value={platformFilter}>
+                  <option value="">全部 Channel</option>
+                  <option value="META">Meta</option>
+                  <option value="TIKTOK">TikTok</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section className="table-panel strategy-table-panel">
+            <table className="strategy-table">
+              <thead>
+                <tr>
+                  <th>创建者</th>
+                  <th>Channel</th>
+                  <th>名称</th>
+                  <th>版本</th>
+                  <th>使用数</th>
+                  <th>创建时间</th>
+                  <th>更新时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => (
+                  <tr className={selectedStrategy?.id === row.id ? "selected-row" : ""} key={row.id} onClick={() => setSelectedId(row.id)}>
+                    <td>{creatorName(row)}</td>
+                    <td>{row.platform}</td>
+                    <td>
+                      <strong>{row.name}</strong>
+                      <br />
+                      <span className="muted">{row.config.objective ?? "-"} / {row.config.optimizationGoal ?? "-"}</span>
+                    </td>
+                    <td>v{versionOf(row)}</td>
+                    <td>{row.usageCount ?? 0}</td>
+                    <td>{formatDate(row.createdAt)}</td>
+                    <td>{formatDate(row.updatedAt)}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="button secondary" onClick={() => setSelectedId(row.id)} type="button">
+                          查看
+                        </button>
+                        <button className="button secondary" onClick={() => edit(row)} type="button">
+                          编辑
+                        </button>
+                        <button className="button secondary" disabled={busyId === row.id} onClick={() => void duplicate(row)} type="button">
+                          复制
+                        </button>
+                        <a className="button primary" href={`/campaigns?strategyId=${row.id}`}>
+                          创建 Campaign
+                        </a>
+                        <button className="button danger" onClick={() => void remove(row)} type="button">
+                          删除
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {visibleRows.length === 0 && !loading ? (
+                  <tr>
+                    <td colSpan={8}>暂无策略模板</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <aside className="strategy-detail-panel">
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <h2>Strategy 详情</h2>
+                <p>查看策略版本、配置和 Campaign 使用入口。</p>
+              </div>
+            </div>
+            {selectedStrategy ? (
+              <div className="strategy-detail">
+                <div className="detail-list">
+                  <div>
+                    <span>名称</span>
+                    <strong>{selectedStrategy.name}</strong>
                   </div>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={7}>暂无策略模板</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                  <div>
+                    <span>创建者</span>
+                    <strong>{creatorName(selectedStrategy)}</strong>
+                  </div>
+                  <div>
+                    <span>Channel</span>
+                    <strong>{selectedStrategy.platform}</strong>
+                  </div>
+                  <div>
+                    <span>版本</span>
+                    <strong>v{versionOf(selectedStrategy)}</strong>
+                  </div>
+                  <div>
+                    <span>已用于 Campaign</span>
+                    <strong>{selectedStrategy.usageCount ?? 0}</strong>
+                  </div>
+                </div>
+                <div className="strategy-config-grid">
+                  <span>Objective：{selectedStrategy.config.objective ?? "-"}</span>
+                  <span>Budget：{selectedStrategy.config.budgetType ?? "-"} / {selectedStrategy.config.dailyBudget ?? "-"}</span>
+                  <span>Bid：{selectedStrategy.config.bidStrategy ?? "-"} / {selectedStrategy.config.bidAmount ?? "-"}</span>
+                  <span>Optimization：{selectedStrategy.config.optimizationGoal ?? "-"}</span>
+                  <span>Billing：{selectedStrategy.config.billingEvent ?? "-"}</span>
+                  <span>Placement：{selectedStrategy.config.placementMode ?? "-"}</span>
+                </div>
+                <div className="notice success">
+                  <strong>命名规则</strong>
+                  <br />
+                  {selectedStrategy.config.namingRule ?? "-"}
+                </div>
+                <div className="button-row">
+                  <button className="button secondary" onClick={() => edit(selectedStrategy)} type="button">
+                    编辑
+                  </button>
+                  <button className="button secondary" onClick={() => void duplicate(selectedStrategy)} type="button">
+                    复制
+                  </button>
+                  <a className="button primary" href={`/campaigns?strategyId=${selectedStrategy.id}`}>
+                    用此策略创建 Campaign
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state compact-empty">请选择 Strategy</div>
+            )}
+          </section>
+        </aside>
       </section>
     </AdminShell>
   );

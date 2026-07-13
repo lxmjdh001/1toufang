@@ -2,7 +2,16 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { Prisma, TeamMemberStatus } from "@1toufang/database/client";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { DatabaseService } from "../database/database.service";
-import { CreateCreativeDto, UpdateCreativeDto } from "./dto";
+import { BulkCreativeTagsDto, CreateCreativeDto, UpdateCreativeDto } from "./dto";
+
+type CreativeMetric = {
+  campaigns: number;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  revenue: number;
+};
 
 @Injectable()
 export class CreativesService {
@@ -10,9 +19,62 @@ export class CreativesService {
 
   async list(user: AuthenticatedUser) {
     const teamId = await this.resolveTeamId(user);
-    return this.db.adCreative.findMany({
+    const creatives = await this.db.adCreative.findMany({
       where: { teamId },
       orderBy: { updatedAt: "desc" }
+    });
+    const creativeIds = creatives.map((creative) => creative.id);
+    const campaigns = creativeIds.length
+      ? await this.db.campaign.findMany({
+          where: { teamId },
+          select: { id: true, config: true, status: true }
+        })
+      : [];
+    const campaignsByCreativeId = new Map<string, string[]>();
+    for (const campaign of campaigns) {
+      const creativeId = stringValue(asRecord(campaign.config).adCreativeId);
+      if (!creativeId || !creativeIds.includes(creativeId)) continue;
+      const current = campaignsByCreativeId.get(creativeId) ?? [];
+      current.push(campaign.id);
+      campaignsByCreativeId.set(creativeId, current);
+    }
+
+    const campaignIds = Array.from(new Set([...campaignsByCreativeId.values()].flat()));
+    const stats = campaignIds.length
+      ? await this.db.campaignDailyStat.findMany({
+          where: { teamId, campaignId: { in: campaignIds } }
+        })
+      : [];
+    const statsByCampaignId = new Map<string, CreativeMetric>();
+    for (const row of stats) {
+      const metric = statsByCampaignId.get(row.campaignId) ?? emptyMetric();
+      metric.spend = roundMoney(metric.spend + money(row.spend));
+      metric.impressions += row.impressions;
+      metric.clicks += row.clicks;
+      metric.conversions += row.conversions;
+      metric.revenue = roundMoney(metric.revenue + money(row.revenue));
+      statsByCampaignId.set(row.campaignId, metric);
+    }
+
+    return creatives.map((creative) => {
+      const linkedCampaignIds = campaignsByCreativeId.get(creative.id) ?? [];
+      const metric = linkedCampaignIds.reduce((current, campaignId) => {
+        addMetric(current, statsByCampaignId.get(campaignId));
+        return current;
+      }, emptyMetric());
+      metric.campaigns = linkedCampaignIds.length;
+      return {
+        ...creative,
+        metrics: {
+          ...metric,
+          spend: roundMoney(metric.spend),
+          revenue: roundMoney(metric.revenue),
+          ctr: metric.impressions ? round((metric.clicks / metric.impressions) * 100, 2) : 0,
+          cpc: metric.clicks ? roundMoney(metric.spend / metric.clicks) : 0,
+          cpa: metric.conversions ? roundMoney(metric.spend / metric.conversions) : 0,
+          roas: metric.spend ? round(metric.revenue / metric.spend, 2) : 0
+        }
+      };
     });
   }
 
@@ -57,6 +119,50 @@ export class CreativesService {
     });
 
     return creative;
+  }
+
+  async duplicate(id: string, user: AuthenticatedUser) {
+    const teamId = await this.resolveTeamId(user);
+    const source = await this.ensureCreative(id, teamId);
+    const creative = await this.db.adCreative.create({
+      data: {
+        teamId,
+        name: `${source.name} 副本`,
+        config: toJson(asRecord(source.config)),
+        tags: Array.from(new Set([...source.tags, "copied"])),
+        status: "draft"
+      }
+    });
+
+    await this.audit(user.id, teamId, "AD_CREATIVE_DUPLICATED", creative.id, {
+      sourceId: source.id,
+      name: creative.name
+    });
+
+    return creative;
+  }
+
+  async bulkTags(dto: BulkCreativeTagsDto, user: AuthenticatedUser) {
+    const teamId = await this.resolveTeamId(user);
+    const ids = Array.from(new Set(dto.ids)).filter(Boolean);
+    const tags = Array.from(new Set(dto.tags.map((tag) => tag.trim()).filter(Boolean)));
+    if (!ids.length) throw new BadRequestException("请选择创意");
+    if (!tags.length) throw new BadRequestException("请输入标签");
+
+    const creatives = await this.db.adCreative.findMany({ where: { teamId, id: { in: ids } } });
+    for (const creative of creatives) {
+      await this.db.adCreative.update({
+        where: { id: creative.id },
+        data: { tags: Array.from(new Set([...creative.tags, ...tags])) }
+      });
+    }
+
+    await this.audit(user.id, teamId, "AD_CREATIVE_BULK_TAGGED", "bulk", {
+      ids: creatives.map((creative) => creative.id),
+      tags
+    });
+
+    return { affected: creatives.length, tags };
   }
 
   async remove(id: string, user: AuthenticatedUser) {
@@ -120,4 +226,41 @@ export class CreativesService {
 
 function toJson(value: Record<string, unknown>) {
   return value as Prisma.InputJsonValue;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function emptyMetric(): CreativeMetric {
+  return { campaigns: 0, spend: 0, impressions: 0, clicks: 0, conversions: 0, revenue: 0 };
+}
+
+function addMetric(target: CreativeMetric, source?: CreativeMetric) {
+  if (!source) return;
+  target.campaigns += source.campaigns;
+  target.spend = roundMoney(target.spend + source.spend);
+  target.impressions += source.impressions;
+  target.clicks += source.clicks;
+  target.conversions += source.conversions;
+  target.revenue = roundMoney(target.revenue + source.revenue);
+}
+
+function money(value: unknown) {
+  if (value == null) return 0;
+  if (typeof value === "object" && "toString" in value) return Number((value as { toString(): string }).toString());
+  return Number(value) || 0;
+}
+
+function roundMoney(value: number) {
+  return round(value, 2);
+}
+
+function round(value: number, digits: number) {
+  const factor = 10 ** digits;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
 }

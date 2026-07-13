@@ -5,7 +5,7 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
-import { DryRunReportSyncDto, ReportOverviewQueryDto, ReportSyncDto } from "./reports.dto";
+import { DryRunReportSyncDto, GlobalSearchQueryDto, ReportOverviewQueryDto, ReportSyncDto } from "./reports.dto";
 import { ReportsService } from "./reports.service";
 
 @ApiTags("Reports")
@@ -18,6 +18,24 @@ export class ReportsController {
   @RequirePermissions("reports.view")
   overview(@Query() query: ReportOverviewQueryDto, @CurrentUser() user: AuthenticatedUser) {
     return this.reportsService.overview(query, user);
+  }
+
+  @Get("dashboard")
+  @RequirePermissions("reports.view")
+  dashboard(@Query() query: ReportOverviewQueryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.reportsService.dashboard(query, user);
+  }
+
+  @Get("search")
+  @RequirePermissions("reports.view")
+  search(@Query() query: GlobalSearchQueryDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.reportsService.search(query, user);
+  }
+
+  @Get("notifications")
+  @RequirePermissions("reports.view")
+  notifications(@CurrentUser() user: AuthenticatedUser) {
+    return this.reportsService.notifications(user);
   }
 
   @Post("sync/dry-run")

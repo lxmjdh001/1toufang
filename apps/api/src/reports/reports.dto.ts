@@ -52,3 +52,10 @@ export class DryRunReportSyncDto {
 }
 
 export class ReportSyncDto extends DryRunReportSyncDto {}
+
+export class GlobalSearchQueryDto {
+  @ApiProperty({ required: false, example: "Facebook" })
+  @IsOptional()
+  @IsString()
+  q?: string;
+}

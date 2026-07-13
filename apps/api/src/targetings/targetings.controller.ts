@@ -25,6 +25,11 @@ export class TargetingsController {
     return this.targetingsService.create(dto, user);
   }
 
+  @Post(":id/duplicate")
+  duplicate(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.targetingsService.duplicate(id, user);
+  }
+
   @Patch(":id")
   update(@Param("id") id: string, @Body() dto: UpdateTargetingDto, @CurrentUser() user: AuthenticatedUser) {
     return this.targetingsService.update(id, dto, user);

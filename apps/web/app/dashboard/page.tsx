@@ -76,6 +76,52 @@ type ReportOverview = {
   latestSyncRuns: SyncRun[];
 };
 
+type DashboardSnapshot = {
+  range: {
+    startDate: string;
+    endDate: string;
+  };
+  wallet: {
+    balance: number;
+    currency: string;
+    status: string;
+    note?: string;
+  };
+  adAccountBalance: {
+    balance: number;
+    currency: string;
+    accountCount: number;
+    lastSyncedAt?: string | null;
+  };
+  adAccountSpend: Metric & {
+    currency: string;
+    source: string;
+  };
+  visitors: {
+    total: number;
+    status: string;
+    note?: string;
+    series: Array<{ date: string; visitors: number }>;
+  };
+  spendSeries: SeriesRow[];
+  aiLogs: Array<{
+    id: string;
+    title: string;
+    message: string;
+    status: "info" | "success" | "warning" | "danger" | string;
+    action: string;
+    createdAt: string;
+  }>;
+  notifications: Array<{
+    id: string;
+    title: string;
+    message: string;
+    severity: "info" | "success" | "warning" | "danger" | string;
+    actionHref?: string | null;
+    createdAt: string;
+  }>;
+};
+
 const emptyInventory: InventoryState = {
   users: "-",
   pending: "-",
@@ -101,9 +147,9 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("zh-CN").format(value);
 }
 
-function formatCurrency(value: number) {
+function formatCurrency(value: number, currency = "USD") {
   return new Intl.NumberFormat("zh-CN", {
-    currency: "USD",
+    currency,
     maximumFractionDigits: 2,
     style: "currency"
   }).format(value);
@@ -129,12 +175,14 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState(() => dateKey(today));
   const [inventory, setInventory] = useState<InventoryState>(emptyInventory);
   const [overview, setOverview] = useState<ReportOverview | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const maxDailySpend = Math.max(...(overview?.series.map((row) => row.spend) ?? [0]), 1);
+  const spendSeries = dashboard?.spendSeries.length ? dashboard.spendSeries : (overview?.series ?? []);
+  const maxDailySpend = Math.max(...(spendSeries.map((row) => row.spend) ?? [0]), 1);
   const maxPlatformSpend = Math.max(...(overview?.platformBreakdown.map((row) => row.spend) ?? [0]), 1);
 
   async function load() {
@@ -142,9 +190,10 @@ export default function DashboardPage() {
     setError(null);
     const params = new URLSearchParams({ startDate, endDate });
 
-    const [report, users, pending, integrations, adAccounts, campaigns, mediaAssets, copywritings, creatives] =
+    const [report, dashboardPanel, users, pending, integrations, adAccounts, campaigns, mediaAssets, copywritings, creatives] =
       await Promise.allSettled([
         apiRequest<ReportOverview>(`/reports/overview?${params.toString()}`),
+        apiRequest<DashboardSnapshot>(`/reports/dashboard?${params.toString()}`),
         apiRequest<unknown[]>("/admin/users"),
         apiRequest<unknown[]>("/admin/users/pending"),
         apiRequest<unknown[]>("/integrations"),
@@ -160,6 +209,12 @@ export default function DashboardPage() {
     } else {
       setOverview(null);
       setError(report.reason instanceof Error ? report.reason.message : "加载报表数据失败");
+    }
+
+    if (dashboardPanel.status === "fulfilled") {
+      setDashboard(dashboardPanel.value);
+    } else {
+      setDashboard(null);
     }
 
     setInventory({
@@ -236,6 +291,9 @@ export default function DashboardPage() {
           <button className="button secondary" onClick={load} type="button">
             刷新
           </button>
+          <a className="button primary" href="/integrations?platform=META">
+            Connect Facebook
+          </a>
           <button className="button primary" disabled={syncing} onClick={syncOfficial} type="button">
             {syncing ? "同步中..." : "同步官方数据"}
           </button>
@@ -247,6 +305,43 @@ export default function DashboardPage() {
     >
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
+
+      <section className="metric-grid control-metrics">
+        <div className="metric metric-strong">
+          <span>钱包余额</span>
+          <strong>{dashboard ? formatCurrency(dashboard.wallet.balance, dashboard.wallet.currency) : loading ? "..." : "-"}</strong>
+          <small>{dashboard?.wallet.status === "not_configured" ? "账务模块未配置" : "可用余额"}</small>
+        </div>
+        <div className="metric">
+          <span>广告户余额</span>
+          <strong>
+            {dashboard
+              ? formatCurrency(dashboard.adAccountBalance.balance, dashboard.adAccountBalance.currency)
+              : loading
+                ? "..."
+                : "-"}
+          </strong>
+          <small>{dashboard ? `${dashboard.adAccountBalance.accountCount} 个广告账户` : "官方账户余额"}</small>
+        </div>
+        <div className="metric">
+          <span>广告户消耗</span>
+          <strong>
+            {dashboard
+              ? formatCurrency(dashboard.adAccountSpend.spend, dashboard.adAccountSpend.currency)
+              : loading
+                ? "..."
+                : "-"}
+          </strong>
+          <small>
+            {dashboard?.range.startDate ?? startDate} - {dashboard?.range.endDate ?? endDate}
+          </small>
+        </div>
+        <div className="metric">
+          <span>访客总数</span>
+          <strong>{dashboard ? formatNumber(dashboard.visitors.total) : loading ? "..." : "-"}</strong>
+          <small>{dashboard?.visitors.status === "tracking_not_configured" ? "埋点未接入" : "落地页访客"}</small>
+        </div>
+      </section>
 
       <section className="metric-grid">
         <div className="metric">
@@ -286,14 +381,15 @@ export default function DashboardPage() {
       <section className="split-grid">
         <div className="panel dashboard-panel">
           <div className="panel-heading">
-            <h2>消耗趋势</h2>
+            <h2>Spend Chart 消耗趋势</h2>
             <span className="muted">
-              {overview?.range.startDate ?? startDate} - {overview?.range.endDate ?? endDate}
+              {dashboard?.range.startDate ?? overview?.range.startDate ?? startDate} -{" "}
+              {dashboard?.range.endDate ?? overview?.range.endDate ?? endDate}
             </span>
           </div>
           <div className="mini-chart">
-            {overview?.series.length ? (
-              overview.series.map((row) => (
+            {spendSeries.length ? (
+              spendSeries.map((row) => (
                 <div className="bar-row" key={row.date}>
                   <span>{row.date.slice(5)}</span>
                   <div className="bar-track">
@@ -308,6 +404,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <div className="panel dashboard-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>AI 助手日志</h2>
+              <p>先展示固定规则自动化、报表同步和发布链路日志，后续可接 AI 优化建议。</p>
+            </div>
+            <a className="button secondary" href="/strategies">
+              固定模型
+            </a>
+          </div>
+          <div className="ai-log-list" id="ai-logs">
+            {dashboard?.aiLogs.length ? (
+              dashboard.aiLogs.map((log) => (
+                <div className="ai-log-item" key={log.id}>
+                  <span className={`pill ${log.status}`}>{log.status}</span>
+                  <div>
+                    <strong>{log.title}</strong>
+                    <small>{log.message}</small>
+                  </div>
+                  <time>{formatDateTime(log.createdAt)}</time>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state compact-empty">
+                <div>
+                  <strong>没有 AI 助手日志</strong>
+                  <span>当前先使用固定策略模板和规则自动化。</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="split-grid">
         <div className="panel dashboard-panel">
           <div className="panel-heading">
             <h2>平台占比</h2>
@@ -326,6 +457,33 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="empty-state">暂无平台数据</div>
+            )}
+          </div>
+        </div>
+
+        <div className="panel dashboard-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>快捷入口</h2>
+              <p>渠道连接、通知和访客统计状态。</p>
+            </div>
+            <a className="button primary" href="/integrations?platform=META">
+              Connect Facebook
+            </a>
+          </div>
+          <div className="quick-status-list">
+            {dashboard?.notifications.length ? (
+              dashboard.notifications.slice(0, 4).map((item) => (
+                <a className={`quick-status-item ${item.severity}`} href={item.actionHref ?? "/dashboard"} key={item.id}>
+                  <span className={`pill ${item.severity}`}>{item.severity}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <small>{item.message}</small>
+                  </div>
+                </a>
+              ))
+            ) : (
+              <div className="empty-state compact-empty">暂无通知</div>
             )}
           </div>
         </div>
