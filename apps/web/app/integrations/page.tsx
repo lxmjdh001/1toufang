@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -34,8 +34,8 @@ export default function IntegrationsPage() {
   const [oauth, setOauth] = useState<OAuthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [oauthNotice, setOauthNotice] = useState<OAuthNotice | null>(null);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   const metaCount = useMemo(() => rows.filter((row) => row.platform === "META").length, [rows]);
   const tiktokCount = rows.length - metaCount;
@@ -55,6 +55,7 @@ export default function IntegrationsPage() {
   async function createOAuth(platform: "meta" | "tiktok") {
     setError(null);
     setOauthNotice(null);
+    setCopyNotice(null);
     try {
       const returnUrl = `${window.location.origin}/integrations`;
       setOauth(
@@ -67,26 +68,25 @@ export default function IntegrationsPage() {
     }
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    const form = new FormData(event.currentTarget);
+  async function copyOAuthUrl() {
+    if (!oauth?.url) return;
     try {
-      await apiRequest("/integrations/manual", {
-        method: "POST",
-        body: JSON.stringify({
-          platform: form.get("platform"),
-          externalId: form.get("externalId"),
-          name: form.get("name")
-        })
-      });
-      event.currentTarget.reset();
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "创建渠道授权失败");
-    } finally {
-      setSaving(false);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(oauth.url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = oauth.url;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopyNotice("授权链接已复制，可以发送给客户打开授权。");
+    } catch {
+      setCopyNotice("复制失败，请手动选中链接复制。");
     }
   }
 
@@ -139,8 +139,7 @@ export default function IntegrationsPage() {
       {oauthNotice ? <div className={`notice ${oauthNotice.type}`}>{oauthNotice.text}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="split-grid">
-        <div className="panel">
+      <section className="panel">
           <div className="panel-heading">
             <div>
               <h2>OAuth 授权</h2>
@@ -157,47 +156,11 @@ export default function IntegrationsPage() {
           </div>
           {oauth ? (
             <div className={oauth.configured ? "notice success" : "notice warning"}>
-              <strong>{oauth.platform}</strong> / {oauth.configured ? "开发者应用已配置" : "开发者应用未配置"}
+              <strong>{oauth.platform}</strong> / {oauth.configured ? "授权链接已生成" : "开发者应用未配置"}
               <br />
-              {oauth.configured ? (
-                <a href={oauth.url} rel="noreferrer" target="_blank">
-                  打开授权链接
-                </a>
-              ) : (
-                <a href="/admin/platform-configs">去配置开发者密钥</a>
-              )}
+              {oauth.configured ? "点击弹窗中的复制按钮，把链接发给客户完成授权。" : <a href="/admin/platform-configs">去配置开发者密钥</a>}
             </div>
           ) : null}
-        </div>
-
-        <form className="panel form" onSubmit={onSubmit}>
-          <div className="panel-heading">
-            <div>
-              <h2>手动添加连接</h2>
-              <p>用于先维护已确认的渠道业务资产。</p>
-            </div>
-          </div>
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="platform">平台</label>
-              <select id="platform" name="platform" required>
-                <option value="META">Meta</option>
-                <option value="TIKTOK">TikTok</option>
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="externalId">外部 ID</label>
-              <input id="externalId" name="externalId" required />
-            </div>
-            <div className="field">
-              <label htmlFor="name">名称</label>
-              <input id="name" name="name" required />
-            </div>
-          </div>
-          <button className="button primary" disabled={saving} type="submit">
-            {saving ? "保存中..." : "保存连接"}
-          </button>
-        </form>
       </section>
 
       <section className="table-panel">
@@ -231,6 +194,41 @@ export default function IntegrationsPage() {
           </tbody>
         </table>
       </section>
+
+      {oauth?.configured ? (
+        <div className="oauth-link-backdrop" role="presentation">
+          <section aria-labelledby="oauthLinkTitle" className="oauth-link-modal" role="dialog">
+            <div className="oauth-link-head">
+              <h2 id="oauthLinkTitle">Connect {oauth.platform === "TIKTOK" ? "TikTok" : "Meta"}</h2>
+              <button aria-label="关闭授权链接" onClick={() => setOauth(null)} type="button">
+                ×
+              </button>
+            </div>
+            <div className="field">
+              <label htmlFor="oauthAuthorizationLink">Authorization Link</label>
+              <input
+                id="oauthAuthorizationLink"
+                onFocus={(event) => event.currentTarget.select()}
+                readOnly
+                value={oauth.url}
+              />
+            </div>
+            {copyNotice ? <div className="notice success compact-notice">{copyNotice}</div> : null}
+            <p>复制此链接发给客户，客户在浏览器打开后登录并授权广告账户，回调成功后系统会自动保存连接。</p>
+            <div className="button-row">
+              <button className="button primary" onClick={() => void copyOAuthUrl()} type="button">
+                复制授权链接
+              </button>
+              <a className="button secondary" href={oauth.url} rel="noreferrer" target="_blank">
+                打开授权页
+              </a>
+              <button className="button secondary" onClick={() => setOauth(null)} type="button">
+                取消
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }

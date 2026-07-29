@@ -24,6 +24,11 @@ type CampaignConfig = {
   targetingId?: string;
   adCreativeId?: string;
   creativeId?: string;
+  pageAssetId?: string;
+  landingPageId?: string;
+  offerId?: string;
+  adSetupMode?: string;
+  existingPostId?: string;
   budget?: number;
   notes?: string;
   objective?: string;
@@ -304,7 +309,7 @@ export class PublisherService {
   }
 
   private async buildContext(campaign: Campaign): Promise<PublishContext> {
-    const config = asCampaignConfig(campaign.config);
+    const config = await this.resolveDeliveryConfig(campaign, asCampaignConfig(campaign.config));
     if (!config.adAccountId) throw new BadRequestException("Campaign 缺少广告账户");
 
     const adAccount = await this.db.adAccount.findFirst({
@@ -357,6 +362,47 @@ export class PublisherService {
       accessToken: integration?.accessTokenEncrypted ? this.secretCrypto.decrypt(integration.accessTokenEncrypted) : null,
       dryRun
     };
+  }
+
+  private async resolveDeliveryConfig(campaign: Campaign, config: CampaignConfig): Promise<CampaignConfig> {
+    const resolved = { ...config };
+
+    if (resolved.pageAssetId && !resolved.pageId && campaign.platform === Platform.META) {
+      const page = await this.db.platformAsset.findFirst({
+        where: {
+          id: resolved.pageAssetId,
+          teamId: campaign.teamId,
+          platform: campaign.platform,
+          type: "FACEBOOK_PAGE"
+        }
+      });
+      if (page) {
+        resolved.pageId = page.externalId;
+      }
+    }
+
+    if (resolved.landingPageId && !resolved.landingPageUrl && !resolved.destinationUrl && !resolved.linkUrl) {
+      const landingPage = await this.db.landingPage.findFirst({
+        where: { id: resolved.landingPageId, teamId: campaign.teamId }
+      });
+      if (landingPage) {
+        resolved.landingPageUrl = landingPage.url;
+        resolved.destinationUrl = landingPage.url;
+        resolved.linkUrl = landingPage.url;
+      }
+    }
+
+    if (resolved.offerId && !resolved.destinationUrl && !resolved.linkUrl) {
+      const offer = await this.db.offer.findFirst({
+        where: { id: resolved.offerId, teamId: campaign.teamId }
+      });
+      if (offer) {
+        resolved.destinationUrl = offer.url;
+        resolved.linkUrl = offer.url;
+      }
+    }
+
+    return resolved;
   }
 
   private async publishMetaCampaign(context: PublishContext): Promise<ProviderPublishResult> {
@@ -543,6 +589,10 @@ export class PublisherService {
       recordValue(creativeOverrides.objectStorySpec) ??
       recordValue(creativeConfig.object_story_spec) ??
       recordValue(creativeConfig.objectStorySpec);
+    const existingPostId =
+      stringValue(context.config.existingPostId) ??
+      stringValue(config.existingPostId) ??
+      stringValue(config.existing_post_id);
     const pageId = stringValue(context.config.pageId) ?? stringValue(config.page_id) ?? stringValue(creativeConfig.pageId);
     const link =
       stringValue(context.config.destinationUrl) ??
@@ -552,6 +602,8 @@ export class PublisherService {
       stringValue(creativeConfig.linkUrl) ??
       stringValue(creativeConfig.landingPageUrl);
     const severity = realMode ? "error" : "warning";
+
+    if (existingPostId) return;
 
     if (!context.creative && !objectStorySpec && (!pageId || !link)) {
       issues.push({
@@ -589,6 +641,20 @@ export class PublisherService {
       recordValue(creativeOverrides.objectStorySpec) ??
       recordValue(creativeConfig.object_story_spec) ??
       recordValue(creativeConfig.objectStorySpec);
+    const existingPostId =
+      stringValue(context.config.existingPostId) ??
+      stringValue(config.existingPostId) ??
+      stringValue(config.existing_post_id);
+
+    if (existingPostId) {
+      return mergeRecords(
+        {
+          name: `${context.campaign.name} Creative`,
+          object_story_id: existingPostId
+        },
+        removeKeys(creativeOverrides, ["object_story_spec", "objectStorySpec", "object_story_id", "objectStoryId"])
+      );
+    }
 
     if (objectStorySpec) {
       return mergeRecords(

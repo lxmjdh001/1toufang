@@ -161,6 +161,8 @@ export default function FacebookChannelPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [oauthUrl, setOauthUrl] = useState<string | null>(null);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
 
   const overview = data?.overview;
   const accountRows = data?.accounts ?? [];
@@ -190,6 +192,7 @@ export default function FacebookChannelPage() {
   async function connectFacebook() {
     setError(null);
     setNotice(null);
+    setCopyNotice(null);
     try {
       const returnUrl = `${window.location.origin}/channels/facebook`;
       const response = await apiRequest<OAuthResponse>(
@@ -199,9 +202,19 @@ export default function FacebookChannelPage() {
         setError("Meta 开发者密钥未配置，请先到系统管理配置。");
         return;
       }
-      window.location.href = response.url;
+      setOauthUrl(response.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "生成 Facebook 授权链接失败");
+    }
+  }
+
+  async function copyOAuthUrl() {
+    if (!oauthUrl) return;
+    try {
+      await navigator.clipboard.writeText(oauthUrl);
+      setCopyNotice("授权链接已复制，可以发送给客户打开授权。");
+    } catch {
+      setCopyNotice("复制失败，请手动选中链接复制。");
     }
   }
 
@@ -380,6 +393,40 @@ export default function FacebookChannelPage() {
       {loading ? <div className="notice success">加载中...</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
+      {oauthUrl ? (
+        <div className="oauth-link-backdrop" role="presentation">
+          <section aria-labelledby="facebookOauthLinkTitle" className="oauth-link-modal" role="dialog">
+            <div className="oauth-link-head">
+              <h2 id="facebookOauthLinkTitle">Connect Facebook</h2>
+              <button aria-label="关闭授权链接" onClick={() => setOauthUrl(null)} type="button">
+                ×
+              </button>
+            </div>
+            <div className="field">
+              <label htmlFor="facebookOauthAuthorizationLink">Authorization Link</label>
+              <input
+                id="facebookOauthAuthorizationLink"
+                onFocus={(event) => event.currentTarget.select()}
+                readOnly
+                value={oauthUrl}
+              />
+            </div>
+            {copyNotice ? <div className="notice success compact-notice">{copyNotice}</div> : null}
+            <p>复制此链接发给客户，客户在浏览器打开后登录并授权 Facebook 广告资产。</p>
+            <div className="button-row">
+              <button className="button primary" onClick={() => void copyOAuthUrl()} type="button">
+                复制授权链接
+              </button>
+              <a className="button secondary" href={oauthUrl} rel="noreferrer" target="_blank">
+                打开授权页
+              </a>
+              <button className="button secondary" onClick={() => setOauthUrl(null)} type="button">
+                取消
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <section className="channel-toolbar">
         <div className="status-tabs" role="tablist">

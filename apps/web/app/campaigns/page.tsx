@@ -1,12 +1,45 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
 type Platform = "META" | "TIKTOK";
 type ViewKey = "default" | "favorite" | "learning" | "stopped" | "unprofitable" | "rejected";
 type GroupKey = "none" | "team" | "user" | "project" | "page" | "tag" | "status" | "createDate";
+type GroupDirection = "asc" | "desc";
+type DeletedFilter = "active" | "all" | "deleted";
+type FilterClause =
+  | "equals"
+  | "not_equals"
+  | "starts_with"
+  | "not_starts_with"
+  | "ends_with"
+  | "not_ends_with"
+  | "contains"
+  | "not_contains"
+  | "is_set"
+  | "is_not_set";
+type ColumnKey =
+  | "id"
+  | "name"
+  | "creator"
+  | "tags"
+  | "status"
+  | "page"
+  | "adAccount"
+  | "dailyBudget"
+  | "spend"
+  | "impressions"
+  | "clicks"
+  | "linkClicks"
+  | "event1"
+  | "event2"
+  | "event3"
+  | "result"
+  | "conversions"
+  | "profit"
+  | "notes";
 type BulkAction =
   | "retry_publish"
   | "stop_selected"
@@ -102,6 +135,8 @@ type CampaignConfig = {
   dailyBudget?: number;
   tags?: string[];
   project?: string;
+  projectId?: string;
+  casesId?: string;
   pageAssetId?: string;
   landingPageId?: string;
   offerId?: string;
@@ -115,6 +150,7 @@ type CampaignConfig = {
   lifecycleStatus?: string;
   favorite?: boolean;
   notes?: string;
+  deletedAt?: string | boolean;
 };
 
 type PublishTaskRow = {
@@ -197,6 +233,25 @@ type BulkResult = {
   results?: Array<{ id: string; ok: boolean; status?: string; message?: string }>;
 };
 
+type BatchCreateResult = {
+  batchGroupId: string;
+  total: number;
+  created: number;
+  queued: number;
+  failed: number;
+  results: Array<{
+    adAccountId: string;
+    ok: boolean;
+    stage: string;
+    campaignId?: string;
+    campaignName?: string;
+    taskId?: string;
+    taskStatus?: string;
+    campaignStatus?: string;
+    message?: string;
+  }>;
+};
+
 const emptyDraft: CampaignDraft = {
   platform: "META",
   name: "",
@@ -241,6 +296,45 @@ const groupOptions: Array<{ key: GroupKey; label: string }> = [
   { key: "createDate", label: "Create Date" }
 ];
 
+const statusOptions = ["DRAFT", "CREATING", "PUBLISHED", "PARTIALLY_FAILED", "FAILED", "PAUSED", "ACTIVE", "ARCHIVED"];
+
+const clauseOptions: Array<{ key: FilterClause; label: string }> = [
+  { key: "equals", label: "Is equal to" },
+  { key: "not_equals", label: "Is not equal to" },
+  { key: "starts_with", label: "Starts with" },
+  { key: "not_starts_with", label: "Does not start with" },
+  { key: "ends_with", label: "Ends with" },
+  { key: "not_ends_with", label: "Does not end with" },
+  { key: "contains", label: "Contains" },
+  { key: "not_contains", label: "Does not contain" },
+  { key: "is_set", label: "Is set" },
+  { key: "is_not_set", label: "Is not set" }
+];
+
+const campaignColumns: Array<{ key: ColumnKey; label: string }> = [
+  { key: "id", label: "ID" },
+  { key: "name", label: "名称" },
+  { key: "creator", label: "创建者" },
+  { key: "tags", label: "标签" },
+  { key: "status", label: "状态" },
+  { key: "page", label: "主页" },
+  { key: "adAccount", label: "广告账户" },
+  { key: "dailyBudget", label: "每日预算" },
+  { key: "spend", label: "消耗" },
+  { key: "impressions", label: "曝光量" },
+  { key: "clicks", label: "点击量" },
+  { key: "linkClicks", label: "链接点击量" },
+  { key: "event1", label: "事件1" },
+  { key: "event2", label: "事件2" },
+  { key: "event3", label: "事件3" },
+  { key: "result", label: "成效" },
+  { key: "conversions", label: "转化" },
+  { key: "profit", label: "效益" },
+  { key: "notes", label: "备注" }
+];
+
+const defaultCampaignColumnKeys = campaignColumns.map((column) => column.key);
+
 function toNumber(value: string) {
   const normalized = value.trim();
   if (!normalized) return undefined;
@@ -257,6 +351,47 @@ function parseList(value: string) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("zh-CN");
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function matchesClause(value: unknown, clause: FilterClause, query: string) {
+  const text = normalizeText(value);
+  const needle = normalizeText(query);
+
+  if (clause === "is_set") return Boolean(text);
+  if (clause === "is_not_set") return !text;
+  if (!needle) return true;
+  if (clause === "equals") return text === needle;
+  if (clause === "not_equals") return text !== needle;
+  if (clause === "starts_with") return text.startsWith(needle);
+  if (clause === "not_starts_with") return !text.startsWith(needle);
+  if (clause === "ends_with") return text.endsWith(needle);
+  if (clause === "not_ends_with") return !text.endsWith(needle);
+  if (clause === "not_contains") return !text.includes(needle);
+  return text.includes(needle);
+}
+
+function isAfterOrEqual(value: string, input: string) {
+  if (!input) return true;
+  return new Date(value).getTime() >= new Date(input).getTime();
+}
+
+function isBeforeOrEqual(value: string, input: string) {
+  if (!input) return true;
+  return new Date(value).getTime() <= new Date(input).getTime();
+}
+
+function isOnOrAfterDate(value: string, input: string) {
+  if (!input) return true;
+  return new Date(value).getTime() >= new Date(`${input}T00:00:00`).getTime();
+}
+
+function isOnOrBeforeDate(value: string, input: string) {
+  if (!input) return true;
+  return new Date(value).getTime() <= new Date(`${input}T23:59:59`).getTime();
 }
 
 function formatDateKey(value: string) {
@@ -318,7 +453,26 @@ export default function CampaignsPage() {
   const [draft, setDraft] = useState<CampaignDraft>(emptyDraft);
   const [activeView, setActiveView] = useState<ViewKey>("default");
   const [groupBy, setGroupBy] = useState<GroupKey>("none");
+  const [groupDirection, setGroupDirection] = useState<GroupDirection>("asc");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showColumns, setShowColumns] = useState(false);
+  const [deletedFilter, setDeletedFilter] = useState<DeletedFilter>("active");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdUntil, setCreatedUntil] = useState("");
+  const [projectClause, setProjectClause] = useState<FilterClause>("contains");
+  const [projectQuery, setProjectQuery] = useState("");
+  const [casesClause, setCasesClause] = useState<FilterClause>("contains");
+  const [casesQuery, setCasesQuery] = useState("");
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<ColumnKey[]>(defaultCampaignColumnKeys);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [batchAdAccountIds, setBatchAdAccountIds] = useState<string[]>([]);
+  const [batchApplyAll, setBatchApplyAll] = useState(false);
+  const [batchPublishNow, setBatchPublishNow] = useState(false);
+  const [batchResult, setBatchResult] = useState<BatchCreateResult | null>(null);
   const [bulkBudget, setBulkBudget] = useState("");
   const [bulkLandingPageId, setBulkLandingPageId] = useState("");
   const [bulkOfferId, setBulkOfferId] = useState("");
@@ -339,6 +493,12 @@ export default function CampaignsPage() {
     () => adAccounts.filter((row) => row.platform === draft.platform),
     [adAccounts, draft.platform]
   );
+  const effectiveBatchAdAccountIds = useMemo(() => {
+    const availableIds = new Set(filteredAdAccounts.map((row) => row.id));
+    return batchApplyAll
+      ? filteredAdAccounts.map((row) => row.id)
+      : batchAdAccountIds.filter((id) => availableIds.has(id));
+  }, [batchAdAccountIds, batchApplyAll, filteredAdAccounts]);
   const filteredStrategies = useMemo(
     () => strategies.filter((row) => row.platform === draft.platform),
     [draft.platform, strategies]
@@ -366,9 +526,54 @@ export default function CampaignsPage() {
     [campaigns]
   );
 
+  const activeFilterCount = useMemo(() => {
+    return [
+      searchTerm.trim(),
+      deletedFilter !== "active" ? deletedFilter : "",
+      statusFilter,
+      startAt,
+      endAt,
+      createdFrom,
+      createdUntil,
+      projectQuery.trim() || projectClause !== "contains" ? projectClause : "",
+      casesQuery.trim() || casesClause !== "contains" ? casesClause : ""
+    ].filter(Boolean).length;
+  }, [
+    casesClause,
+    casesQuery,
+    createdFrom,
+    createdUntil,
+    deletedFilter,
+    endAt,
+    projectClause,
+    projectQuery,
+    searchTerm,
+    startAt,
+    statusFilter
+  ]);
+
+  const visibleColumns = useMemo(
+    () => campaignColumns.filter((column) => visibleColumnKeys.includes(column.key)),
+    [visibleColumnKeys]
+  );
+
   const visibleCampaigns = useMemo(
-    () => campaigns.filter((row) => matchesView(row, activeView)),
-    [activeView, campaigns]
+    () => campaigns.filter((row) => matchesView(row, activeView) && matchesSearch(row) && matchesAdvancedFilters(row)),
+    [
+      activeView,
+      campaigns,
+      casesClause,
+      casesQuery,
+      createdFrom,
+      createdUntil,
+      deletedFilter,
+      endAt,
+      projectClause,
+      projectQuery,
+      searchTerm,
+      startAt,
+      statusFilter
+    ]
   );
 
   const visibleIds = useMemo(() => Array.from(new Set(visibleCampaigns.map((row) => row.id))), [visibleCampaigns]);
@@ -394,8 +599,13 @@ export default function CampaignsPage() {
     [visibleCampaigns]
   );
 
-  const groupedCampaigns = useMemo(() => groupCampaigns(visibleCampaigns, groupBy), [groupBy, visibleCampaigns]);
+  const groupedCampaigns = useMemo(
+    () => groupCampaigns(visibleCampaigns, groupBy, groupDirection),
+    [groupBy, groupDirection, visibleCampaigns]
+  );
   const selectedCount = selectedIds.length;
+  const tableColSpan = visibleColumns.length + 2;
+  const canCreateCampaign = filteredAdAccounts.length > 0 && (Boolean(draft.adAccountId) || effectiveBatchAdAccountIds.length > 0);
 
   async function load() {
     setLoading(true);
@@ -444,13 +654,36 @@ export default function CampaignsPage() {
     setSaving(true);
     setError(null);
     setNotice(null);
+    setBatchResult(null);
     try {
-      await apiRequest("/campaigns", {
-        method: "POST",
-        body: JSON.stringify(buildPayload(draft))
-      });
-      setNotice(saveMode === "continue" ? "Campaign 草稿已保存，可以继续创建" : "Campaign 草稿已保存");
+      if (effectiveBatchAdAccountIds.length > 0) {
+        const result = await apiRequest<BatchCreateResult>("/campaigns/batch-create", {
+          method: "POST",
+          body: JSON.stringify(buildBatchPayload(draft, effectiveBatchAdAccountIds, batchPublishNow))
+        });
+        setBatchResult(result);
+        setNotice(
+          `批量创建完成：${result.created}/${result.total} 个 Campaign${result.queued ? `，${result.queued} 个已提交发布队列` : ""}${
+            result.failed ? `，${result.failed} 个失败` : ""
+          }`
+        );
+      } else {
+        if (!draft.adAccountId) {
+          setError("请选择广告账户");
+          return;
+        }
+        await apiRequest("/campaigns", {
+          method: "POST",
+          body: JSON.stringify(buildPayload(draft))
+        });
+        setNotice(saveMode === "continue" ? "Campaign 草稿已保存，可以继续创建" : "Campaign 草稿已保存");
+      }
       setDraft((current) => (saveMode === "continue" ? carryDraft(current) : emptyDraft));
+      if (saveMode !== "continue") {
+        setBatchAdAccountIds([]);
+        setBatchApplyAll(false);
+        setBatchPublishNow(false);
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "保存 Campaign 草稿失败");
@@ -562,6 +795,30 @@ export default function CampaignsPage() {
     }
   }
 
+  async function applyCurrentViewToSelected() {
+    const viewConfig: Record<string, unknown> = {};
+
+    if (activeView === "favorite") {
+      viewConfig.favorite = true;
+    } else if (activeView === "learning") {
+      viewConfig.lifecycleStatus = "learning";
+    } else if (activeView === "stopped") {
+      viewConfig.lifecycleStatus = "stopped";
+    } else if (activeView === "unprofitable") {
+      viewConfig.lifecycleStatus = "unprofitable";
+    } else if (activeView === "rejected") {
+      viewConfig.lifecycleStatus = "rejected";
+    } else {
+      viewConfig.lifecycleStatus = "";
+    }
+
+    await updateBulkConfig(viewConfig, "视图已应用");
+  }
+
+  async function removeSelectedFromFavorites() {
+    await updateBulkConfig({ favorite: false }, "已从收藏移除");
+  }
+
   async function toggleFavorite(row: CampaignRow) {
     setError(null);
     try {
@@ -601,6 +858,52 @@ export default function CampaignsPage() {
     }
   }
 
+  function resetFilters() {
+    setSearchTerm("");
+    setDeletedFilter("active");
+    setStatusFilter("");
+    setStartAt("");
+    setEndAt("");
+    setCreatedFrom("");
+    setCreatedUntil("");
+    setProjectClause("contains");
+    setProjectQuery("");
+    setCasesClause("contains");
+    setCasesQuery("");
+  }
+
+  function toggleColumn(key: ColumnKey) {
+    setVisibleColumnKeys((current) => {
+      if (current.includes(key)) {
+        return current.length > 1 ? current.filter((item) => item !== key) : current;
+      }
+
+      return defaultCampaignColumnKeys.filter((item) => item === key || current.includes(item));
+    });
+  }
+
+  function applyNoteTemplate(kind: string) {
+    const templates: Record<string, string> = {
+      bold: "**加粗文本**",
+      italic: "_斜体文本_",
+      strike: "~~删除线~~",
+      link: "[链接文字](https://)",
+      heading: "## 标题",
+      quote: "> 引用",
+      code: "```\n代码\n```",
+      bullet: "- 列表项",
+      number: "1. 列表项",
+      table: "| 字段 | 内容 |\n| --- | --- |\n|  |  |",
+      attachment: "[附件说明](url)"
+    };
+    const nextText = templates[kind];
+    if (!nextText) return;
+    setDraft((current) => ({
+      ...current,
+      notes: current.notes ? `${current.notes}\n${nextText}` : nextText
+    }));
+  }
+
   function updateDraft<K extends keyof CampaignDraft>(key: K, value: CampaignDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
@@ -614,6 +917,8 @@ export default function CampaignsPage() {
       targetingId: "",
       pageAssetId: ""
     }));
+    setBatchAdAccountIds([]);
+    setBatchApplyAll(false);
   }
 
   function randName() {
@@ -657,6 +962,50 @@ export default function CampaignsPage() {
 
   function domainName(id?: string) {
     return domains.find((item) => item.id === id)?.domain ?? "-";
+  }
+
+  function creativeName(id?: string) {
+    return creatives.find((item) => item.id === id)?.name ?? "";
+  }
+
+  function matchesSearch(row: CampaignRow) {
+    const needle = normalizeText(searchTerm);
+    if (!needle) return true;
+    const haystack = [
+      row.id,
+      row.name,
+      row.platform,
+      row.status,
+      userName(row),
+      row.config.project,
+      row.config.projectId,
+      row.config.casesId,
+      row.config.lifecycleStatus,
+      row.config.tags?.join(" "),
+      pageName(row.config.pageAssetId),
+      adAccountName(row.config.adAccountId),
+      landingPageName(row.config.landingPageId),
+      offerName(row.config.offerId),
+      domainName(row.config.domainId),
+      row.config.notes
+    ]
+      .map(normalizeText)
+      .join(" ");
+    return haystack.includes(needle);
+  }
+
+  function matchesAdvancedFilters(row: CampaignRow) {
+    const deleted = Boolean(row.config.deletedAt);
+    if (deletedFilter === "active" && deleted) return false;
+    if (deletedFilter === "deleted" && !deleted) return false;
+    if (statusFilter && row.status !== statusFilter) return false;
+    if (!isAfterOrEqual(row.updatedAt, startAt)) return false;
+    if (!isBeforeOrEqual(row.updatedAt, endAt)) return false;
+    if (!isOnOrAfterDate(row.createdAt, createdFrom)) return false;
+    if (!isOnOrBeforeDate(row.createdAt, createdUntil)) return false;
+    if (!matchesClause(row.config.projectId ?? row.config.project, projectClause, projectQuery)) return false;
+    if (!matchesClause(row.config.casesId, casesClause, casesQuery)) return false;
+    return true;
   }
 
   function latestTask(row: CampaignRow) {
@@ -745,6 +1094,15 @@ export default function CampaignsPage() {
     };
   }
 
+  function buildBatchPayload(current: CampaignDraft, adAccountIds: string[], publishNow: boolean) {
+    const { adAccountId: _adAccountId, ...template } = buildPayload(current);
+    return {
+      ...template,
+      adAccountIds,
+      publishNow
+    };
+  }
+
   function carryDraft(current: CampaignDraft): CampaignDraft {
     return {
       ...emptyDraft,
@@ -767,16 +1125,31 @@ export default function CampaignsPage() {
     };
   }
 
+  function toggleBatchAdAccount(id: string) {
+    setBatchApplyAll(false);
+    setBatchAdAccountIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  function selectAllBatchAdAccounts() {
+    setBatchApplyAll(true);
+    setBatchAdAccountIds(filteredAdAccounts.map((row) => row.id));
+  }
+
+  function clearBatchAdAccounts() {
+    setBatchApplyAll(false);
+    setBatchAdAccountIds([]);
+  }
+
   function matchesView(row: CampaignRow, view: ViewKey) {
     if (view === "default") return true;
     if (view === "favorite") return Boolean(row.config.favorite);
     if (view === "learning") return row.config.lifecycleStatus === "learning";
     if (view === "stopped") return row.status === "PAUSED" || row.config.lifecycleStatus === "stopped";
-    if (view === "unprofitable") return row.metrics.profit < 0;
+    if (view === "unprofitable") return row.metrics.profit < 0 || row.config.lifecycleStatus === "unprofitable";
     return row.status === "FAILED" || row.status === "PARTIALLY_FAILED" || row.config.lifecycleStatus === "rejected";
   }
 
-  function groupCampaigns(rows: CampaignRow[], key: GroupKey): CampaignGroup[] {
+  function groupCampaigns(rows: CampaignRow[], key: GroupKey, direction: GroupDirection): CampaignGroup[] {
     if (key === "none") return [{ key: "all", label: "全部 Campaign", rows }];
 
     const groups = new Map<string, CampaignRow[]>();
@@ -793,7 +1166,9 @@ export default function CampaignsPage() {
 
     return Array.from(groups.entries())
       .map(([label, groupRows]) => ({ key: label, label, rows: groupRows }))
-      .sort((left, right) => left.label.localeCompare(right.label, "zh-CN"));
+      .sort((left, right) =>
+        direction === "asc" ? left.label.localeCompare(right.label, "zh-CN") : right.label.localeCompare(left.label, "zh-CN")
+      );
   }
 
   function groupLabel(row: CampaignRow, key: GroupKey) {
@@ -806,9 +1181,113 @@ export default function CampaignsPage() {
     return "全部 Campaign";
   }
 
+  function renderCampaignCell(row: CampaignRow, key: ColumnKey): ReactNode {
+    if (key === "id") {
+      return (
+        <>
+          <span className="mono-id">{row.id.slice(-8)}</span>
+          <br />
+          <span className="muted">{row.platform}</span>
+        </>
+      );
+    }
+
+    if (key === "name") {
+      return (
+        <div className="campaign-name-cell">
+          <strong>{row.name}</strong>
+          <div className="muted">
+            {landingPageName(row.config.landingPageId)} / {offerName(row.config.offerId)}
+          </div>
+          <div className="campaign-name-meta">
+            {row.config.splitTest ? <span className="pill info">Split test</span> : null}
+            {row.config.adSetupMode ? <span className="pill">{row.config.adSetupMode}</span> : null}
+          </div>
+        </div>
+      );
+    }
+
+    if (key === "creator") return userName(row);
+
+    if (key === "tags") {
+      return (
+        <div className="tag-list">
+          {(row.config.tags?.length ? row.config.tags : ["未打标签"]).map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+      );
+    }
+
+    if (key === "status") {
+      return (
+        <>
+          <span className={statusClass(row.status)}>{row.status}</span>
+          {row.config.lifecycleStatus ? (
+            <>
+              <br />
+              <span className="muted">{row.config.lifecycleStatus}</span>
+            </>
+          ) : null}
+          {latestTask(row) ? (
+            <div className="task-summary">
+              <span className={statusClass(latestTask(row)?.status ?? "")}>{latestTask(row)?.status}</span>
+              <small>{latestTask(row)?.errorMessage ?? `${latestTask(row)?.attempts ?? 0} 次`}</small>
+            </div>
+          ) : null}
+          {preflightResults[row.id] ? (
+            <div className={`preflight-result ${preflightResults[row.id].ready ? "success" : "warning"}`}>
+              <strong>{preflightResults[row.id].ready ? "预检通过" : "预检提示"}</strong>
+              {preflightResults[row.id].issues.slice(0, 2).map((issue) => (
+                <small key={`${issue.code}:${issue.message}`}>{issue.message}</small>
+              ))}
+            </div>
+          ) : null}
+        </>
+      );
+    }
+
+    if (key === "page") {
+      return (
+        <>
+          {pageName(row.config.pageAssetId)}
+          <br />
+          <span className="muted">{domainName(row.config.domainId)}</span>
+        </>
+      );
+    }
+
+    if (key === "adAccount") return adAccountName(row.config.adAccountId);
+    if (key === "dailyBudget") return formatMoney(row.config.dailyBudget ?? row.config.budget);
+    if (key === "spend") return formatMoney(row.metrics.spend);
+    if (key === "impressions") return formatNumber(row.metrics.impressions);
+    if (key === "clicks") return formatNumber(row.metrics.clicks);
+    if (key === "linkClicks") return formatNumber(row.metrics.linkClicks);
+    if (key === "event1") return formatNumber(row.metrics.event1);
+    if (key === "event2") return formatNumber(row.metrics.event2);
+    if (key === "event3") return formatNumber(row.metrics.event3);
+    if (key === "result") return formatNumber(row.metrics.result);
+    if (key === "conversions") return formatNumber(row.metrics.conversions);
+
+    if (key === "profit") {
+      return (
+        <span className={row.metrics.profit < 0 ? "metric-negative" : "metric-positive"}>
+          {formatMoney(row.metrics.profit)}
+        </span>
+      );
+    }
+
+    return <span className="notes-cell">{row.config.notes ?? "-"}</span>;
+  }
+
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    const availableIds = new Set(filteredAdAccounts.map((row) => row.id));
+    setBatchAdAccountIds((current) => current.filter((id) => availableIds.has(id)));
+  }, [filteredAdAccounts]);
 
   useEffect(() => {
     const strategyId = new URLSearchParams(window.location.search).get("strategyId");
@@ -865,6 +1344,27 @@ export default function CampaignsPage() {
       {loading ? <div className="notice success">加载中...</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
+      {batchResult ? (
+        <section className="batch-result-panel">
+          <div className="field-panel-heading">
+            <div>
+              <strong>批量任务 {batchResult.batchGroupId}</strong>
+              <span>
+                已创建 {batchResult.created}/{batchResult.total} · 已入队 {batchResult.queued} · 失败 {batchResult.failed}
+              </span>
+            </div>
+          </div>
+          <div className="batch-result-list">
+            {batchResult.results.map((result) => (
+              <div className={`batch-result-item ${result.ok ? "success" : "danger"}`} key={`${result.adAccountId}:${result.campaignId ?? result.stage}`}>
+                <span className={result.ok ? "pill success" : "pill danger"}>{result.ok ? "OK" : "FAILED"}</span>
+                <strong>{result.campaignName ?? result.adAccountId}</strong>
+                <small>{result.taskStatus ?? result.campaignStatus ?? result.message ?? result.stage}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div className="panel-heading">
@@ -887,14 +1387,19 @@ export default function CampaignsPage() {
             </div>
             <div className="field">
               <label htmlFor="campaignStrategy">Campaign Strategy</label>
-              <select id="campaignStrategy" onChange={(event) => updateDraft("strategyId", event.target.value)} value={draft.strategyId}>
-                <option value="">不选择</option>
-                {filteredStrategies.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
+              <div className="inline-control">
+                <select id="campaignStrategy" onChange={(event) => updateDraft("strategyId", event.target.value)} value={draft.strategyId}>
+                  <option value="">不选择</option>
+                  {filteredStrategies.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+                <a className="button secondary" href="/strategies">
+                  Create
+                </a>
+              </div>
             </div>
             <div className="field campaign-name-field">
               <label htmlFor="campaignName">Campaign 名称</label>
@@ -919,7 +1424,6 @@ export default function CampaignsPage() {
                 disabled={filteredAdAccounts.length === 0}
                 id="campaignAdAccount"
                 onChange={(event) => updateDraft("adAccountId", event.target.value)}
-                required
                 value={draft.adAccountId}
               >
                 <option value="">选择广告账户</option>
@@ -929,6 +1433,43 @@ export default function CampaignsPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="field batch-account-field">
+              <label>批量应用账户</label>
+              <div className="batch-account-toolbar">
+                <button className="button secondary" disabled={filteredAdAccounts.length === 0} onClick={selectAllBatchAdAccounts} type="button">
+                  全选当前平台账户
+                </button>
+                <button className="button secondary" disabled={effectiveBatchAdAccountIds.length === 0} onClick={clearBatchAdAccounts} type="button">
+                  清空
+                </button>
+                <label className="check-field compact-check" htmlFor="batchPublishNow">
+                  <input
+                    checked={batchPublishNow}
+                    id="batchPublishNow"
+                    onChange={(event) => setBatchPublishNow(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>创建后提交发布队列</span>
+                </label>
+                <span className="batch-account-count">已选择 {effectiveBatchAdAccountIds.length} 个账户</span>
+              </div>
+              <div className="batch-account-list">
+                {filteredAdAccounts.map((row) => (
+                  <label className="batch-account-option" key={row.id}>
+                    <input
+                      checked={effectiveBatchAdAccountIds.includes(row.id)}
+                      onChange={() => toggleBatchAdAccount(row.id)}
+                      type="checkbox"
+                    />
+                    <span>
+                      <strong>{row.name}</strong>
+                      <small>{row.externalId}</small>
+                    </span>
+                  </label>
+                ))}
+                {filteredAdAccounts.length === 0 ? <div className="selected-item">暂无当前平台广告账户</div> : null}
+              </div>
             </div>
             <div className="field">
               <label htmlFor="campaignPage">Page</label>
@@ -943,29 +1484,39 @@ export default function CampaignsPage() {
             </div>
             <div className="field">
               <label htmlFor="campaignLandingPage">Money page</label>
-              <select
-                id="campaignLandingPage"
-                onChange={(event) => updateDraft("landingPageId", event.target.value)}
-                value={draft.landingPageId}
-              >
-                <option value="">不选择</option>
-                {landingPages.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
+              <div className="inline-control">
+                <select
+                  id="campaignLandingPage"
+                  onChange={(event) => updateDraft("landingPageId", event.target.value)}
+                  value={draft.landingPageId}
+                >
+                  <option value="">不选择</option>
+                  {landingPages.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+                <a className="button secondary" href="/landing-pages">
+                  Create
+                </a>
+              </div>
             </div>
             <div className="field">
               <label htmlFor="campaignOffer">Offer</label>
-              <select id="campaignOffer" onChange={(event) => updateDraft("offerId", event.target.value)} required value={draft.offerId}>
-                <option value="">选择 Offer</option>
-                {offers.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
+              <div className="inline-control">
+                <select id="campaignOffer" onChange={(event) => updateDraft("offerId", event.target.value)} required value={draft.offerId}>
+                  <option value="">选择 Offer</option>
+                  {offers.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+                <a className="button secondary" href="/offers">
+                  Create
+                </a>
+              </div>
             </div>
             <div className="field">
               <label htmlFor="campaignDomain">Custom Domain</label>
@@ -986,51 +1537,84 @@ export default function CampaignsPage() {
                 value={draft.customDomain}
               />
             </div>
-            <div className="field">
-              <label htmlFor="campaignAdSetup">Ad setup</label>
-              <select
-                id="campaignAdSetup"
-                onChange={(event) => updateDraft("adSetupMode", event.target.value as CampaignDraft["adSetupMode"])}
-                value={draft.adSetupMode}
-              >
-                <option value="EXISTING_POST">Existing post</option>
-                <option value="EXISTING_CREATIVE">Existing creative</option>
-                <option value="CREATE_CREATIVE">Create creative</option>
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="campaignPostId">Existing post ID</label>
-              <input
-                id="campaignPostId"
-                onChange={(event) => updateDraft("existingPostId", event.target.value)}
-                value={draft.existingPostId}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="campaignCreative">Ad creatives</label>
-              <select
-                id="campaignCreative"
-                onChange={(event) => updateDraft("adCreativeId", event.target.value)}
-                value={draft.adCreativeId}
-              >
-                <option value="">不选择</option>
-                {creatives.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
+            <div className="field ad-setup-field">
+              <label>Ad setup</label>
+              <div className="ad-setup-options">
+                {[
+                  { key: "EXISTING_POST", label: "使用已有帖子" },
+                  { key: "EXISTING_CREATIVE", label: "使用已有创意" },
+                  { key: "CREATE_CREATIVE", label: "创建创意" }
+                ].map((option) => (
+                  <label className={`radio-card ${draft.adSetupMode === option.key ? "active" : ""}`} key={option.key}>
+                    <input
+                      checked={draft.adSetupMode === option.key}
+                      onChange={() => updateDraft("adSetupMode", option.key as CampaignDraft["adSetupMode"])}
+                      type="radio"
+                    />
+                    <span>{option.label}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
+            {draft.adSetupMode === "EXISTING_POST" ? (
+              <div className="field">
+                <label htmlFor="campaignPostId">Existing post ID</label>
+                <input
+                  id="campaignPostId"
+                  onChange={(event) => updateDraft("existingPostId", event.target.value)}
+                  value={draft.existingPostId}
+                />
+              </div>
+            ) : null}
+            {draft.adSetupMode === "EXISTING_CREATIVE" ? (
+              <div className="field creative-picker-field">
+                <label htmlFor="campaignCreative">Ad creatives</label>
+                <div className="selected-item">
+                  {draft.adCreativeId ? creativeName(draft.adCreativeId) || draft.adCreativeId : "No item selected yet."}
+                </div>
+                <div className="inline-control">
+                  <select
+                    id="campaignCreative"
+                    onChange={(event) => updateDraft("adCreativeId", event.target.value)}
+                    value={draft.adCreativeId}
+                  >
+                    <option value="">Select ad creative</option>
+                    {creatives.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="button secondary" onClick={() => updateDraft("adCreativeId", "")} type="button">
+                    Remove item
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {draft.adSetupMode === "CREATE_CREATIVE" ? (
+              <div className="field creative-picker-field">
+                <label>Ad creatives</label>
+                <div className="selected-item">No item selected yet.</div>
+                <a className="button secondary compact-link-button" href="/creatives">
+                  Create
+                </a>
+              </div>
+            ) : null}
             <div className="field">
               <label htmlFor="campaignTargeting">Targeting</label>
-              <select id="campaignTargeting" onChange={(event) => updateDraft("targetingId", event.target.value)} value={draft.targetingId}>
-                <option value="">不选择</option>
-                {filteredTargetings.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
+              <div className="inline-control">
+                <select id="campaignTargeting" onChange={(event) => updateDraft("targetingId", event.target.value)} value={draft.targetingId}>
+                  <option value="">不选择</option>
+                  {filteredTargetings.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+                <a className="button secondary" href="/targetings">
+                  Create
+                </a>
+              </div>
             </div>
             <div className="field">
               <label htmlFor="campaignBudget">每日预算</label>
@@ -1082,22 +1666,41 @@ export default function CampaignsPage() {
               <span>Split test</span>
             </label>
           </div>
-          <div className="field">
-            <label htmlFor="campaignNotes">Notes 富文本备注</label>
+          <div className="field campaign-notes-field">
+            <label htmlFor="campaignNotes">备注</label>
+            <div className="rich-note-toolbar" aria-label="Notes toolbar">
+              {[
+                ["bold", "加粗"],
+                ["italic", "斜体"],
+                ["strike", "删除线"],
+                ["link", "链接"],
+                ["heading", "标题"],
+                ["quote", "引用"],
+                ["code", "代码"],
+                ["bullet", "普通列表"],
+                ["number", "数字列表"],
+                ["table", "表格"],
+                ["attachment", "附件"]
+              ].map(([key, label]) => (
+                <button key={key} onClick={() => applyNoteTemplate(key)} type="button">
+                  {label}
+                </button>
+              ))}
+            </div>
             <textarea id="campaignNotes" onChange={(event) => updateDraft("notes", event.target.value)} value={draft.notes} />
           </div>
           <div className="campaign-form-actions">
             <button
               className="button primary"
-              disabled={saving || filteredAdAccounts.length === 0}
+              disabled={saving || !canCreateCampaign}
               onClick={() => setSaveMode("save")}
               type="submit"
             >
-              {saving && saveMode === "save" ? "保存中..." : "Save"}
+              {saving && saveMode === "save" ? "保存中..." : effectiveBatchAdAccountIds.length ? "批量创建" : "Save"}
             </button>
             <button
               className="button secondary"
-              disabled={saving || filteredAdAccounts.length === 0}
+              disabled={saving || !canCreateCampaign}
               onClick={() => setSaveMode("continue")}
               type="submit"
             >
@@ -1122,17 +1725,160 @@ export default function CampaignsPage() {
               </button>
             ))}
           </div>
-          <div className="field compact-field">
-            <label htmlFor="campaignGroupBy">分组</label>
-            <select id="campaignGroupBy" onChange={(event) => setGroupBy(event.target.value as GroupKey)} value={groupBy}>
-              {groupOptions.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <div className="campaign-toolbar-controls">
+            <div className="field compact-field campaign-search-field">
+              <label htmlFor="campaignSearch">搜索</label>
+              <input
+                id="campaignSearch"
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="搜索"
+                type="search"
+                value={searchTerm}
+              />
+            </div>
+            <div className="field compact-field">
+              <label htmlFor="campaignGroupBy">分组</label>
+              <select id="campaignGroupBy" onChange={(event) => setGroupBy(event.target.value as GroupKey)} value={groupBy}>
+                {groupOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field compact-field">
+              <label htmlFor="campaignGroupDirection">分组排序</label>
+              <select
+                id="campaignGroupDirection"
+                onChange={(event) => setGroupDirection(event.target.value as GroupDirection)}
+                value={groupDirection}
+              >
+                <option value="asc">升序</option>
+                <option value="desc">降序</option>
+              </select>
+            </div>
+            <button className="button secondary" onClick={() => setShowFilters((current) => !current)} type="button">
+              筛选 {activeFilterCount}
+            </button>
+            <button className="button secondary" onClick={() => setShowColumns((current) => !current)} type="button">
+              切换显示字段
+            </button>
           </div>
         </div>
+
+        {showFilters ? (
+          <div className="campaign-filter-panel">
+            <div className="field">
+              <label htmlFor="campaignDeletedFilter">已删除记录</label>
+              <select
+                id="campaignDeletedFilter"
+                onChange={(event) => setDeletedFilter(event.target.value as DeletedFilter)}
+                value={deletedFilter}
+              >
+                <option value="active">不显示已删除记录</option>
+                <option value="all">显示全部记录</option>
+                <option value="deleted">仅显示已删除记录</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="campaignStatusFilter">Status</label>
+              <select id="campaignStatusFilter" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
+                <option value="">所有</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="campaignStartAt">Start</label>
+              <input id="campaignStartAt" onChange={(event) => setStartAt(event.target.value)} type="datetime-local" value={startAt} />
+            </div>
+            <div className="field">
+              <label htmlFor="campaignEndAt">End</label>
+              <input id="campaignEndAt" onChange={(event) => setEndAt(event.target.value)} type="datetime-local" value={endAt} />
+            </div>
+            <div className="field">
+              <label htmlFor="campaignCreatedFrom">Created from</label>
+              <input id="campaignCreatedFrom" onChange={(event) => setCreatedFrom(event.target.value)} type="date" value={createdFrom} />
+            </div>
+            <div className="field">
+              <label htmlFor="campaignCreatedUntil">Created until</label>
+              <input
+                id="campaignCreatedUntil"
+                onChange={(event) => setCreatedUntil(event.target.value)}
+                type="date"
+                value={createdUntil}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="campaignProjectClause">Project id</label>
+              <div className="filter-clause-control">
+                <select
+                  id="campaignProjectClause"
+                  onChange={(event) => setProjectClause(event.target.value as FilterClause)}
+                  value={projectClause}
+                >
+                  {clauseOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <input onChange={(event) => setProjectQuery(event.target.value)} value={projectQuery} />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="campaignCasesClause">Cases id</label>
+              <div className="filter-clause-control">
+                <select
+                  id="campaignCasesClause"
+                  onChange={(event) => setCasesClause(event.target.value as FilterClause)}
+                  value={casesClause}
+                >
+                  {clauseOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <input onChange={(event) => setCasesQuery(event.target.value)} value={casesQuery} />
+              </div>
+            </div>
+            <div className="campaign-filter-actions">
+              <button className="button secondary" onClick={resetFilters} type="button">
+                重置
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {showColumns ? (
+          <div className="campaign-field-panel">
+            <div className="field-panel-heading">
+              <div>
+                <strong>Visible {visibleColumnKeys.length}</strong>
+                <span>Hidden {campaignColumns.length - visibleColumnKeys.length}</span>
+              </div>
+              <button className="button secondary" onClick={() => setVisibleColumnKeys(defaultCampaignColumnKeys)} type="button">
+                Enable all
+              </button>
+            </div>
+            <div className="field-toggle-list">
+              {campaignColumns.map((column) => (
+                <label key={column.key}>
+                  <input
+                    checked={visibleColumnKeys.includes(column.key)}
+                    onChange={() => toggleColumn(column.key)}
+                    type="checkbox"
+                  />
+                  {column.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="bulk-panel">
           <div>
@@ -1140,6 +1886,23 @@ export default function CampaignsPage() {
             <span>批量发布、启停、预算和内容配置</span>
           </div>
           <div className="button-row">
+            <button
+              className="button secondary"
+              disabled={!selectedCount || Boolean(busyAction)}
+              onClick={() => void applyCurrentViewToSelected()}
+              type="button"
+            >
+              Apply view
+            </button>
+            <button
+              className="button secondary"
+              disabled={!selectedCount || Boolean(busyAction)}
+              onClick={() => void removeSelectedFromFavorites()}
+              type="button"
+            >
+              Remove from favorites
+            </button>
+            <span className="bulk-action-label">Ad Controls</span>
             <button
               className="button secondary"
               disabled={!selectedCount || Boolean(busyAction)}
@@ -1172,7 +1935,9 @@ export default function CampaignsPage() {
             >
               Delete selected
             </button>
+            <span className="bulk-action-label">Budget Control</span>
           </div>
+          <div className="bulk-section-title">Content & Optimization</div>
           <div className="bulk-config-grid">
             <div className="field">
               <label htmlFor="bulkBudget">Modify daily budget</label>
@@ -1270,25 +2035,9 @@ export default function CampaignsPage() {
                 <th className="checkbox-cell">
                   <input checked={allVisibleSelected} onChange={toggleVisibleRows} type="checkbox" />
                 </th>
-                <th>ID</th>
-                <th>名称</th>
-                <th>创建者</th>
-                <th>标签</th>
-                <th>状态</th>
-                <th>主页</th>
-                <th>广告账户</th>
-                <th>每日预算</th>
-                <th>消耗</th>
-                <th>曝光量</th>
-                <th>点击量</th>
-                <th>链接点击量</th>
-                <th>事件1</th>
-                <th>事件2</th>
-                <th>事件3</th>
-                <th>成效</th>
-                <th>转化</th>
-                <th>效益</th>
-                <th>备注</th>
+                {visibleColumns.map((column) => (
+                  <th key={column.key}>{column.label}</th>
+                ))}
                 <th>操作</th>
               </tr>
             </thead>
@@ -1296,7 +2045,7 @@ export default function CampaignsPage() {
               <tbody key={group.key}>
                 {groupBy !== "none" ? (
                   <tr className="group-row">
-                    <td colSpan={21}>
+                    <td colSpan={tableColSpan}>
                       {group.label} <span>{group.rows.length} 个 Campaign</span>
                     </td>
                   </tr>
@@ -1306,71 +2055,9 @@ export default function CampaignsPage() {
                     <td className="checkbox-cell">
                       <input checked={selectedIds.includes(row.id)} onChange={() => toggleRow(row.id)} type="checkbox" />
                     </td>
-                    <td>
-                      <span className="mono-id">{row.id.slice(-8)}</span>
-                      <br />
-                      <span className="muted">{row.platform}</span>
-                    </td>
-                    <td className="campaign-name-cell">
-                      <strong>{row.name}</strong>
-                      <div className="muted">
-                        {landingPageName(row.config.landingPageId)} / {offerName(row.config.offerId)}
-                      </div>
-                      {row.config.splitTest ? <span className="pill info">Split test</span> : null}
-                    </td>
-                    <td>{userName(row)}</td>
-                    <td>
-                      <div className="tag-list">
-                        {(row.config.tags?.length ? row.config.tags : ["未打标签"]).map((tag) => (
-                          <span key={tag}>{tag}</span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={statusClass(row.status)}>{row.status}</span>
-                      {row.config.lifecycleStatus ? (
-                        <>
-                          <br />
-                          <span className="muted">{row.config.lifecycleStatus}</span>
-                        </>
-                      ) : null}
-                      {latestTask(row) ? (
-                        <div className="task-summary">
-                          <span className={statusClass(latestTask(row)?.status ?? "")}>{latestTask(row)?.status}</span>
-                          <small>{latestTask(row)?.errorMessage ?? `${latestTask(row)?.attempts ?? 0} 次`}</small>
-                        </div>
-                      ) : null}
-                      {preflightResults[row.id] ? (
-                        <div className={`preflight-result ${preflightResults[row.id].ready ? "success" : "warning"}`}>
-                          <strong>{preflightResults[row.id].ready ? "预检通过" : "预检提示"}</strong>
-                          {preflightResults[row.id].issues.slice(0, 2).map((issue) => (
-                            <small key={`${issue.code}:${issue.message}`}>{issue.message}</small>
-                          ))}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td>
-                      {pageName(row.config.pageAssetId)}
-                      <br />
-                      <span className="muted">{domainName(row.config.domainId)}</span>
-                    </td>
-                    <td>{adAccountName(row.config.adAccountId)}</td>
-                    <td>{formatMoney(row.config.dailyBudget ?? row.config.budget)}</td>
-                    <td>{formatMoney(row.metrics.spend)}</td>
-                    <td>{formatNumber(row.metrics.impressions)}</td>
-                    <td>{formatNumber(row.metrics.clicks)}</td>
-                    <td>{formatNumber(row.metrics.linkClicks)}</td>
-                    <td>{formatNumber(row.metrics.event1)}</td>
-                    <td>{formatNumber(row.metrics.event2)}</td>
-                    <td>{formatNumber(row.metrics.event3)}</td>
-                    <td>{formatNumber(row.metrics.result)}</td>
-                    <td>{formatNumber(row.metrics.conversions)}</td>
-                    <td>
-                      <span className={row.metrics.profit < 0 ? "metric-negative" : "metric-positive"}>
-                        {formatMoney(row.metrics.profit)}
-                      </span>
-                    </td>
-                    <td className="notes-cell">{row.config.notes ?? "-"}</td>
+                    {visibleColumns.map((column) => (
+                      <td key={`${row.id}:${column.key}`}>{renderCampaignCell(row, column.key)}</td>
+                    ))}
                     <td>
                       <div className="row-actions">
                         <button className="button secondary" onClick={() => void toggleFavorite(row)} type="button">
@@ -1418,7 +2105,7 @@ export default function CampaignsPage() {
             {visibleCampaigns.length === 0 && !loading ? (
               <tbody>
                 <tr>
-                  <td colSpan={21}>暂无 Campaign</td>
+                  <td colSpan={tableColSpan}>暂无 Campaign</td>
                 </tr>
               </tbody>
             ) : null}

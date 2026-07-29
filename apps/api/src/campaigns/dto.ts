@@ -1,8 +1,18 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Platform, PublishStatus } from "@1toufang/database/client";
-import { IsArray, IsBoolean, IsEnum, IsIn, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString
+} from "class-validator";
 
-export class CreateCampaignDto {
+class CampaignTemplateDto {
   @ApiProperty({ enum: Platform })
   @IsEnum(Platform)
   platform: Platform;
@@ -10,10 +20,6 @@ export class CreateCampaignDto {
   @ApiProperty()
   @IsString()
   name: string;
-
-  @ApiProperty()
-  @IsString()
-  adAccountId: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -117,6 +123,25 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsString()
   teamId?: string;
+}
+
+export class CreateCampaignDto extends CampaignTemplateDto {
+  @ApiProperty()
+  @IsString()
+  adAccountId: string;
+}
+
+export class CreateCampaignBatchDto extends CampaignTemplateDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  adAccountIds: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  publishNow?: boolean;
 }
 
 export class UpdateCampaignDto {

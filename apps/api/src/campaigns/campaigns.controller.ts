@@ -6,7 +6,13 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { CampaignsService } from "./campaigns.service";
-import { BulkCampaignActionDto, CreateCampaignDto, UpdateCampaignBudgetDto, UpdateCampaignDto } from "./dto";
+import {
+  BulkCampaignActionDto,
+  CreateCampaignBatchDto,
+  CreateCampaignDto,
+  UpdateCampaignBudgetDto,
+  UpdateCampaignDto
+} from "./dto";
 
 @ApiTags("Campaigns")
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -24,6 +30,12 @@ export class CampaignsController {
   @RequirePermissions("campaigns.create")
   create(@Body() dto: CreateCampaignDto, @CurrentUser() user: AuthenticatedUser) {
     return this.campaignsService.create(dto, user);
+  }
+
+  @Post("batch-create")
+  @RequirePermissions("campaigns.create")
+  batchCreate(@Body() dto: CreateCampaignBatchDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.campaignsService.batchCreate(dto, user);
   }
 
   @Post("bulk")

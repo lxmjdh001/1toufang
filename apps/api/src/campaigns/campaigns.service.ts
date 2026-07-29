@@ -3,7 +3,13 @@ import { Platform, Prisma, PublishStatus, TeamMemberStatus } from "@1toufang/dat
 import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { DatabaseService } from "../database/database.service";
 import { PublisherService } from "../publisher/publisher.service";
-import { BulkCampaignActionDto, CreateCampaignDto, UpdateCampaignBudgetDto, UpdateCampaignDto } from "./dto";
+import {
+  BulkCampaignActionDto,
+  CreateCampaignBatchDto,
+  CreateCampaignDto,
+  UpdateCampaignBudgetDto,
+  UpdateCampaignDto
+} from "./dto";
 
 type CampaignTotals = {
   spend: number;
@@ -15,6 +21,10 @@ type CampaignTotals = {
   event3: number;
   conversions: number;
   revenue: number;
+};
+
+type CreateCampaignForAccountDto = Omit<CreateCampaignBatchDto, "adAccountIds" | "publishNow"> & {
+  adAccountId: string;
 };
 
 @Injectable()
@@ -68,31 +78,98 @@ export class CampaignsService {
 
   async create(dto: CreateCampaignDto, user: AuthenticatedUser) {
     const teamId = dto.teamId ?? (await this.resolveTeamId(user));
-    await this.assertAssets(teamId, dto);
+    return this.createDraft(dto, user, teamId);
+  }
 
-    const config = {
-      ...(dto.config ?? {}),
-      adAccountId: dto.adAccountId,
-      strategyId: dto.strategyId,
-      targetingId: dto.targetingId,
-      adCreativeId: dto.adCreativeId,
-      budget: dto.budget,
-      dailyBudget: dto.budget,
-      tags: dto.tags ?? [],
-      project: dto.project,
-      pageAssetId: dto.pageAssetId,
-      landingPageId: dto.landingPageId,
-      offerId: dto.offerId,
-      domainId: dto.domainId,
-      customDomain: dto.customDomain,
-      adSetupMode: dto.adSetupMode,
-      existingPostId: dto.existingPostId,
-      splitTest: dto.splitTest ?? false,
-      optimizerIds: dto.optimizerIds ?? [],
-      aiAssistantIds: dto.aiAssistantIds ?? [],
-      lifecycleStatus: dto.lifecycleStatus,
-      notes: dto.notes
+  async batchCreate(dto: CreateCampaignBatchDto, user: AuthenticatedUser) {
+    const teamId = dto.teamId ?? (await this.resolveTeamId(user));
+    const adAccountIds = Array.from(new Set(dto.adAccountIds)).filter(Boolean);
+    if (!adAccountIds.length) throw new BadRequestException("请选择广告账户");
+
+    const { adAccountIds: _adAccountIds, publishNow, ...template } = dto;
+    const batchGroupId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const results = [];
+
+    for (const adAccountId of adAccountIds) {
+      try {
+        const campaign = await this.createDraft(
+          {
+            ...template,
+            adAccountId,
+            config: {
+              ...(template.config ?? {}),
+              batchGroupId,
+              batchCreatedFrom: "campaign_batch_create"
+            }
+          },
+          user,
+          teamId
+        );
+
+        if (publishNow) {
+          try {
+            const task = await this.publisher.publishCampaign(campaign.id, user);
+            results.push({
+              adAccountId,
+              ok: true,
+              stage: "publish",
+              campaignId: campaign.id,
+              campaignName: campaign.name,
+              taskId: task.id,
+              taskStatus: task.status
+            });
+          } catch (err) {
+            results.push({
+              adAccountId,
+              ok: false,
+              stage: "publish",
+              campaignId: campaign.id,
+              campaignName: campaign.name,
+              message: err instanceof Error ? err.message : "提交发布队列失败"
+            });
+          }
+        } else {
+          results.push({
+            adAccountId,
+            ok: true,
+            stage: "create",
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            campaignStatus: campaign.status
+          });
+        }
+      } catch (err) {
+        results.push({
+          adAccountId,
+          ok: false,
+          stage: "create",
+          message: err instanceof Error ? err.message : "创建 Campaign 失败"
+        });
+      }
+    }
+
+    await this.audit(user.id, teamId, "CAMPAIGN_BATCH_CREATED", batchGroupId, {
+      batchGroupId,
+      platform: dto.platform,
+      requested: adAccountIds.length,
+      created: results.filter((result) => Boolean(result.campaignId)).length,
+      queued: results.filter((result) => Boolean(result.taskId)).length,
+      failed: results.filter((result) => !result.ok).length
+    });
+
+    return {
+      batchGroupId,
+      total: adAccountIds.length,
+      created: results.filter((result) => Boolean(result.campaignId)).length,
+      queued: results.filter((result) => Boolean(result.taskId)).length,
+      failed: results.filter((result) => !result.ok).length,
+      results
     };
+  }
+
+  private async createDraft(dto: CreateCampaignDto | CreateCampaignForAccountDto, user: AuthenticatedUser, teamId: string) {
+    const adAccount = await this.assertAssets(teamId, dto);
+    const config = this.buildDraftConfig(dto, adAccount.name);
     const campaign = await this.db.campaign.create({
       data: {
         teamId,
@@ -251,6 +328,33 @@ export class CampaignsService {
     return this.publisher.listTasks(id, user);
   }
 
+  private buildDraftConfig(dto: CreateCampaignDto | CreateCampaignForAccountDto, adAccountName: string) {
+    return {
+      ...(dto.config ?? {}),
+      adAccountId: dto.adAccountId,
+      adAccountName,
+      strategyId: dto.strategyId,
+      targetingId: dto.targetingId,
+      adCreativeId: dto.adCreativeId,
+      budget: dto.budget,
+      dailyBudget: dto.budget,
+      tags: dto.tags ?? [],
+      project: dto.project,
+      pageAssetId: dto.pageAssetId,
+      landingPageId: dto.landingPageId,
+      offerId: dto.offerId,
+      domainId: dto.domainId,
+      customDomain: dto.customDomain,
+      adSetupMode: dto.adSetupMode,
+      existingPostId: dto.existingPostId,
+      splitTest: dto.splitTest ?? false,
+      optimizerIds: dto.optimizerIds ?? [],
+      aiAssistantIds: dto.aiAssistantIds ?? [],
+      lifecycleStatus: dto.lifecycleStatus,
+      notes: dto.notes
+    };
+  }
+
   private async assertAssets(
     teamId: string,
     dto: Pick<
@@ -299,6 +403,8 @@ export class CampaignsService {
       const domain = await this.db.domain.findFirst({ where: { id: dto.domainId, teamId } });
       if (!domain) throw new BadRequestException("Domain does not belong to current team");
     }
+
+    return adAccount;
   }
 
   private async ensureCampaign(id: string, teamId: string) {
