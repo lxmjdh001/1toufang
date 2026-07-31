@@ -1598,6 +1598,135 @@ button:disabled {
   margin-bottom: 20px;
 }
 
+.ad-account-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ad-account-summary-item {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #344054;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.ad-account-summary-item.active {
+  background: #e8f1ff;
+  border-color: #bfd5fb;
+  color: var(--primary);
+}
+
+.ad-account-summary-item strong {
+  font-size: 14px;
+}
+
+.ad-account-create-panel {
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.ad-account-filter-panel {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(260px, 1fr) 170px 170px;
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.ad-account-search-field input {
+  min-width: 0;
+}
+
+.ad-account-table-panel {
+  margin-top: 0;
+}
+
+.ad-account-table {
+  min-width: 980px;
+  table-layout: fixed;
+}
+
+.ad-account-table th,
+.ad-account-table td {
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 8px 9px;
+  white-space: nowrap;
+}
+
+.ad-account-table th {
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.ad-account-name {
+  color: var(--text);
+  font-weight: 900;
+  white-space: normal;
+}
+
+.ad-account-table th:nth-child(1),
+.ad-account-table td:nth-child(1) {
+  width: 190px;
+}
+
+.ad-account-table th:nth-child(2),
+.ad-account-table td:nth-child(2) {
+  width: 90px;
+}
+
+.ad-account-table th:nth-child(3),
+.ad-account-table td:nth-child(3) {
+  width: 150px;
+}
+
+.ad-account-table th:nth-child(4),
+.ad-account-table td:nth-child(4) {
+  width: 58px;
+}
+
+.ad-account-table th:nth-child(5),
+.ad-account-table td:nth-child(5) {
+  width: 72px;
+}
+
+.ad-account-table th:nth-child(6),
+.ad-account-table td:nth-child(6) {
+  width: 136px;
+}
+
+.ad-account-table th:nth-child(7),
+.ad-account-table td:nth-child(7) {
+  width: 80px;
+}
+
+.ad-account-table th:nth-child(8),
+.ad-account-table td:nth-child(8) {
+  width: 142px;
+}
+
+.ad-account-table th:nth-child(9),
+.ad-account-table td:nth-child(9) {
+  width: 62px;
+}
+
+.tiny-button {
+  border-radius: 7px;
+  font-size: 12px;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
 .field-toggle-list {
   display: flex;
   flex-wrap: wrap;
@@ -2784,6 +2913,10 @@ tbody tr:hover {
 }
 
 @media (max-width: 880px) {
+  .ad-account-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
   .auth-shell {
     padding: 18px;
   }

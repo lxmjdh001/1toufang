@@ -156,7 +156,7 @@ export default function TikTokChannelPage() {
     if (!oauthUrl) return;
     try {
       await navigator.clipboard.writeText(oauthUrl);
-      setCopyNotice("授权链接已复制，可以发送给客户打开授权。");
+      setCopyNotice("授权链接已复制");
     } catch {
       setCopyNotice("复制失败，请手动选中链接复制。");
     }
@@ -271,7 +271,6 @@ export default function TikTokChannelPage() {
               />
             </div>
             {copyNotice ? <div className="notice success compact-notice">{copyNotice}</div> : null}
-            <p>复制此链接发给客户，客户在浏览器打开后登录并授权 TikTok 广告账户。</p>
             <div className="button-row">
               <button className="button primary" onClick={() => void copyOAuthUrl()} type="button">
                 复制授权链接

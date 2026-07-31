@@ -84,7 +84,7 @@ export default function IntegrationsPage() {
         document.execCommand("copy");
         document.body.removeChild(textarea);
       }
-      setCopyNotice("授权链接已复制，可以发送给客户打开授权。");
+      setCopyNotice("授权链接已复制");
     } catch {
       setCopyNotice("复制失败，请手动选中链接复制。");
     }
@@ -158,7 +158,7 @@ export default function IntegrationsPage() {
             <div className={oauth.configured ? "notice success" : "notice warning"}>
               <strong>{oauth.platform}</strong> / {oauth.configured ? "授权链接已生成" : "开发者应用未配置"}
               <br />
-              {oauth.configured ? "点击弹窗中的复制按钮，把链接发给客户完成授权。" : <a href="/admin/platform-configs">去配置开发者密钥</a>}
+              {oauth.configured ? "授权链接已生成。" : <a href="/admin/platform-configs">去配置开发者密钥</a>}
             </div>
           ) : null}
       </section>
@@ -214,7 +214,6 @@ export default function IntegrationsPage() {
               />
             </div>
             {copyNotice ? <div className="notice success compact-notice">{copyNotice}</div> : null}
-            <p>复制此链接发给客户，客户在浏览器打开后登录并授权广告账户，回调成功后系统会自动保存连接。</p>
             <div className="button-row">
               <button className="button primary" onClick={() => void copyOAuthUrl()} type="button">
                 复制授权链接
