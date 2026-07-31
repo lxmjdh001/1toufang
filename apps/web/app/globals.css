@@ -1590,6 +1590,10 @@ button:disabled {
   min-width: 1920px;
 }
 
+.channel-account-table td {
+  vertical-align: middle;
+}
+
 .channel-resource-table {
   min-width: 1020px;
 }
@@ -2698,22 +2702,37 @@ button:disabled {
 
 .notes-cell {
   color: #344054;
-  display: block;
   max-width: 260px;
   min-width: 180px;
-  white-space: pre-wrap;
+  white-space: normal;
+}
+
+.partner-cell {
+  max-width: 150px;
+  min-width: 120px;
+}
+
+.partner-cell span {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .row-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  min-width: 280px;
+  gap: 5px;
+  min-width: 210px;
 }
 
 .row-actions .button {
-  min-height: 32px;
-  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  min-height: 28px;
+  padding: 0 8px;
 }
 
 .group-row td {

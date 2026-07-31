@@ -129,6 +129,31 @@ const resourceLabels: Record<string, string> = {
   transactions: "交易记录"
 };
 
+const statusLabels: Record<string, string> = {
+  all: "全部",
+  active: "激活",
+  idle: "闲置",
+  pending_recycle: "待回收",
+  blocked: "封户",
+  problem: "问题",
+  archived: "存档",
+  force_cleared: "已强清",
+  switch_pending: "切换中",
+  charge_recorded: "已记录充值",
+  manual: "手动",
+  synced: "已同步"
+};
+
+const accountActions: Array<{ action: string; label: string; danger?: boolean }> = [
+  { action: "change_name", label: "改名" },
+  { action: "edit", label: "编辑" },
+  { action: "check_compliance", label: "查合规" },
+  { action: "force_clear", label: "强清" },
+  { action: "remove", label: "移除", danger: true },
+  { action: "switch_facebook", label: "切换账号" },
+  { action: "charge", label: "充值" }
+];
+
 function formatMoney(value?: number) {
   return Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(value ?? 0));
 }
@@ -146,6 +171,15 @@ function statusClass(status: string) {
   if (status === "blocked" || status === "problem") return "pill danger";
   if (status === "pending_recycle" || status === "idle") return "pill warning";
   return "pill";
+}
+
+function statusLabel(status?: string) {
+  if (!status) return "-";
+  return statusLabels[status] ?? status;
+}
+
+function accountActionLabel(action: string) {
+  return accountActions.find((item) => item.action === action)?.label ?? action;
 }
 
 function csvCell(value: unknown) {
@@ -263,7 +297,7 @@ export default function FacebookChannelPage() {
         method: "POST",
         body: JSON.stringify(body)
       });
-      setNotice(response.result?.message ?? `操作已提交：${action}`);
+      setNotice(response.result?.message ?? `操作已提交：${accountActionLabel(action)}`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "账户操作失败");
@@ -355,16 +389,16 @@ export default function FacebookChannelPage() {
       actions={
         <div className="button-row">
           <button className="button primary" onClick={() => void connectFacebook()} type="button">
-            Connect Facebook
+            Facebook 授权
           </button>
           <button className="button secondary" disabled={syncing} onClick={() => void syncAssets()} type="button">
             {syncing ? "同步中..." : "同步资源"}
           </button>
           <button className="button secondary" onClick={downloadReport} type="button">
-            Download Report
+            下载报表
           </button>
           <button className="button secondary" onClick={exportAccounts} type="button">
-            Export
+            导出账户
           </button>
         </div>
       }
@@ -397,7 +431,7 @@ export default function FacebookChannelPage() {
         <div className="oauth-link-backdrop" role="presentation">
           <section aria-labelledby="facebookOauthLinkTitle" className="oauth-link-modal" role="dialog">
             <div className="oauth-link-head">
-              <h2 id="facebookOauthLinkTitle">Connect Facebook</h2>
+              <h2 id="facebookOauthLinkTitle">Facebook 授权</h2>
               <button aria-label="关闭授权链接" onClick={() => setOauthUrl(null)} type="button">
                 ×
               </button>
@@ -458,55 +492,12 @@ export default function FacebookChannelPage() {
         ))}
       </section>
 
-      <section className="split-grid">
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Pending Recycle</h2>
-              <p>进入回收队列的广告账户。</p>
-            </div>
-          </div>
-          <div className="quick-status-list">
-            {(data?.pendingRecycle ?? []).slice(0, 5).map((row) => (
-              <div className="quick-status-item" key={row.id}>
-                <span className={statusClass(row.statusView)}>{row.statusView}</span>
-                <div>
-                  <strong>{row.name}</strong>
-                  <small>{row.accountId} / {row.currency}</small>
-                </div>
-              </div>
-            ))}
-            {data?.pendingRecycle.length === 0 ? <div className="empty-state compact-empty">暂无待回收账户</div> : null}
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Compliance Monitoring Report</h2>
-              <p>基于同步状态和账户动作形成的合规监控队列。</p>
-            </div>
-          </div>
-          <div className="quick-status-list">
-            {(data?.complianceReport ?? []).slice(0, 5).map((row) => (
-              <div className="quick-status-item" key={row.id}>
-                <span className={row.severity === "danger" ? "pill danger" : "pill warning"}>{row.status}</span>
-                <div>
-                  <strong>{row.name}</strong>
-                  <small>{row.message}</small>
-                </div>
-              </div>
-            ))}
-            {data?.complianceReport.length === 0 ? <div className="empty-state compact-empty">暂无合规风险</div> : null}
-          </div>
-        </div>
-      </section>
-
       <section className="table-panel channel-table-panel">
         <div className="table-header">
           <div>
             <strong>广告账户</strong>
             <br />
-            <span className="muted">状态视图：{status} / 当前资源：{activeResourceLabel}</span>
+            <span className="muted">状态视图：{statusLabel(status)} / 当前资源：{activeResourceLabel}</span>
           </div>
         </div>
         <table className="channel-account-table">
@@ -537,12 +528,14 @@ export default function FacebookChannelPage() {
                 <td>
                   <strong>{row.name}</strong>
                   <br />
-                  <span className={statusClass(row.statusView)}>{row.statusView}</span>
+                  <span className={statusClass(row.statusView)}>{statusLabel(row.statusView)}</span>
                 </td>
                 <td>{row.accountId}</td>
                 <td>{row.user}</td>
                 <td>{row.billing}</td>
-                <td>{row.partner}</td>
+                <td className="partner-cell">
+                  <span title={row.partner}>{row.partner}</span>
+                </td>
                 <td>{row.currency}</td>
                 <td>{formatNumber(row.ads)}</td>
                 <td>{row.idleDays} 天</td>
@@ -556,17 +549,9 @@ export default function FacebookChannelPage() {
                 <td>{formatDate(row.createdAt)}</td>
                 <td>
                   <div className="row-actions">
-                    {[
-                      ["change_name", "Change name"],
-                      ["edit", "Edit"],
-                      ["check_compliance", "Check compliance"],
-                      ["force_clear", "Force clear"],
-                      ["remove", "Remove"],
-                      ["switch_facebook", "Switch Facebook"],
-                      ["charge", "Charge"]
-                    ].map(([action, label]) => (
+                    {accountActions.map(({ action, label, danger }) => (
                       <button
-                        className={action === "remove" ? "button danger" : "button secondary"}
+                        className={danger ? "button danger" : "button secondary"}
                         disabled={busyId === `${row.id}:${action}`}
                         key={action}
                         onClick={() => void runAccountAction(row, action)}
@@ -614,7 +599,7 @@ export default function FacebookChannelPage() {
                 <td>{row.name}</td>
                 <td>{row.externalId}</td>
                 <td>
-                  <span className="pill">{row.status}</span>
+                  <span className="pill">{statusLabel(row.status)}</span>
                 </td>
                 <td>{formatDate(row.updatedAt)}</td>
                 <td className="notes-cell">{row.metadata ?? "-"}</td>
