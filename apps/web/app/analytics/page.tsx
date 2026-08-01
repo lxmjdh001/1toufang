@@ -185,7 +185,7 @@ export default function AnalyticsPage() {
             <input onChange={(event) => setEndDate(event.target.value)} type="date" value={endDate} />
           </label>
           <button className="button secondary" onClick={exportCsv} type="button">
-            Export
+            导出
           </button>
           <button className="button primary" onClick={() => void load()} type="button">
             刷新

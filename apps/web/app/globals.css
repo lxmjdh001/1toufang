@@ -1544,6 +1544,36 @@ button:disabled {
   margin-bottom: 14px;
 }
 
+.facebook-channel-toolbar {
+  display: block;
+}
+
+.channel-tab-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  width: 100%;
+}
+
+.channel-inline-status-tabs,
+.channel-inline-resource-tabs {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+.channel-inline-resource-tabs {
+  border-left: 1px solid var(--border);
+  margin-bottom: 0;
+  padding-left: 8px;
+}
+
+.channel-inline-status-tabs .status-tab,
+.channel-inline-resource-tabs button {
+  white-space: nowrap;
+}
+
 .channel-updated {
   color: var(--muted);
   font-size: 13px;
@@ -1587,15 +1617,147 @@ button:disabled {
 }
 
 .channel-account-table {
-  min-width: 1920px;
+  min-width: 2460px;
+  table-layout: fixed;
 }
 
+.channel-account-table th,
 .channel-account-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
   vertical-align: middle;
+  white-space: nowrap;
+}
+
+.channel-account-table th {
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.channel-account-table th:nth-child(1),
+.channel-account-table td:nth-child(1) {
+  width: 190px;
+}
+
+.channel-account-table th:nth-child(2),
+.channel-account-table td:nth-child(2) {
+  width: 230px;
+}
+
+.channel-account-table th:nth-child(3),
+.channel-account-table td:nth-child(3) {
+  width: 160px;
+}
+
+.channel-account-table th:nth-child(4),
+.channel-account-table td:nth-child(4) {
+  width: 92px;
+}
+
+.channel-account-table th:nth-child(5),
+.channel-account-table td:nth-child(5) {
+  width: 190px;
+}
+
+.channel-account-table th:nth-child(6),
+.channel-account-table td:nth-child(6) {
+  width: 82px;
+}
+
+.channel-account-table th:nth-child(7),
+.channel-account-table td:nth-child(7) {
+  width: 72px;
+}
+
+.channel-account-table th:nth-child(8),
+.channel-account-table td:nth-child(8) {
+  width: 86px;
+}
+
+.channel-account-table th:nth-child(9),
+.channel-account-table td:nth-child(9),
+.channel-account-table th:nth-child(10),
+.channel-account-table td:nth-child(10),
+.channel-account-table th:nth-child(11),
+.channel-account-table td:nth-child(11) {
+  width: 118px;
+}
+
+.channel-account-table th:nth-child(12),
+.channel-account-table td:nth-child(12) {
+  width: 190px;
+}
+
+.channel-account-table th:nth-child(13),
+.channel-account-table td:nth-child(13) {
+  width: 88px;
+}
+
+.channel-account-table th:nth-child(14),
+.channel-account-table td:nth-child(14) {
+  width: 118px;
+}
+
+.channel-account-table th:nth-child(15),
+.channel-account-table td:nth-child(15) {
+  width: 180px;
+}
+
+.channel-account-table th:nth-child(16),
+.channel-account-table td:nth-child(16) {
+  width: 180px;
+}
+
+.channel-account-table th:nth-child(17),
+.channel-account-table td:nth-child(17) {
+  width: 300px;
+}
+
+.channel-account-table td:last-child {
+  overflow: visible;
+}
+
+.channel-name-cell {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.channel-name-cell strong {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-account-table .row-actions {
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.channel-account-table .notes-cell,
+.channel-resource-table .notes-cell {
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-account-table :where(th, td, th *, td *),
+.channel-resource-table :where(th, td, th *, td *) {
+  overflow-wrap: normal !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
 }
 
 .channel-resource-table {
   min-width: 1020px;
+}
+
+.channel-resource-table th,
+.channel-resource-table td {
+  white-space: nowrap;
 }
 
 .channel-filter-panel {

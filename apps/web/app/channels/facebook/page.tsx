@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminShell } from "../../../components/admin-shell";
 import { apiRequest } from "../../../lib/api";
 
@@ -202,11 +202,6 @@ export default function FacebookChannelPage() {
   const accountRows = data?.accounts ?? [];
   const resources = data?.resources ?? [];
   const activeResourceLabel = resourceLabels[resource] ?? "资源";
-
-  const resourceSummary = useMemo(
-    () => data?.resourceTabs.map((tab) => `${tab.label} ${tab.count}`).join(" / ") ?? "-",
-    [data?.resourceTabs]
-  );
 
   async function load(nextStatus = status, nextResource = resource) {
     setLoading(true);
@@ -461,35 +456,35 @@ export default function FacebookChannelPage() {
         </div>
       ) : null}
 
-      <section className="channel-toolbar">
-        <div className="status-tabs" role="tablist">
-          {(data?.statusViews ?? []).map((tab) => (
-            <button
-              className={`status-tab ${status === tab.key ? "active" : ""}`}
-              key={tab.key}
-              onClick={() => changeStatus(tab.key)}
-              type="button"
-            >
-              <span>{tab.label}</span>
-              <strong>{tab.count}</strong>
-            </button>
-          ))}
+      <section className="channel-toolbar facebook-channel-toolbar" aria-label="Facebook 渠道筛选">
+        <div className="channel-tab-row">
+          <div className="status-tabs channel-inline-status-tabs">
+            {(data?.statusViews ?? []).map((tab) => (
+              <button
+                className={`status-tab ${status === tab.key ? "active" : ""}`}
+                key={tab.key}
+                onClick={() => changeStatus(tab.key)}
+                type="button"
+              >
+                <span>{tab.label}</span>
+                <strong>{tab.count}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="resource-tabs channel-inline-resource-tabs">
+            {(data?.resourceTabs ?? []).map((tab) => (
+              <button
+                className={resource === tab.key ? "active" : ""}
+                key={tab.key}
+                onClick={() => changeResource(tab.key)}
+                type="button"
+              >
+                <span>{tab.label}</span>
+                <strong>{tab.count}</strong>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="channel-updated">资源：{resourceSummary}</div>
-      </section>
-
-      <section className="resource-tabs">
-        {(data?.resourceTabs ?? []).map((tab) => (
-          <button
-            className={resource === tab.key ? "active" : ""}
-            key={tab.key}
-            onClick={() => changeResource(tab.key)}
-            type="button"
-          >
-            <span>{tab.label}</span>
-            <strong>{tab.count}</strong>
-          </button>
-        ))}
       </section>
 
       <section className="table-panel channel-table-panel">
@@ -526,9 +521,10 @@ export default function FacebookChannelPage() {
             {accountRows.map((row) => (
               <tr key={row.id}>
                 <td>
-                  <strong>{row.name}</strong>
-                  <br />
-                  <span className={statusClass(row.statusView)}>{statusLabel(row.statusView)}</span>
+                  <div className="channel-name-cell">
+                    <strong title={row.name}>{row.name}</strong>
+                    <span className={statusClass(row.statusView)}>{statusLabel(row.statusView)}</span>
+                  </div>
                 </td>
                 <td>{row.accountId}</td>
                 <td>{row.user}</td>
@@ -545,7 +541,9 @@ export default function FacebookChannelPage() {
                 <td>{row.timezone}</td>
                 <td>{formatNumber(row.pixels)}</td>
                 <td>{formatNumber(row.removedAds)}</td>
-                <td className="notes-cell">{row.notes}</td>
+                <td className="notes-cell" title={row.notes}>
+                  {row.notes}
+                </td>
                 <td>{formatDate(row.createdAt)}</td>
                 <td>
                   <div className="row-actions">
@@ -581,7 +579,7 @@ export default function FacebookChannelPage() {
             <span className="muted">当前资源子模块清单</span>
           </div>
         </div>
-        <table>
+        <table className="channel-resource-table">
           <thead>
             <tr>
               <th>类型</th>
@@ -602,7 +600,9 @@ export default function FacebookChannelPage() {
                   <span className="pill">{statusLabel(row.status)}</span>
                 </td>
                 <td>{formatDate(row.updatedAt)}</td>
-                <td className="notes-cell">{row.metadata ?? "-"}</td>
+                <td className="notes-cell" title={row.metadata ?? "-"}>
+                  {row.metadata ?? "-"}
+                </td>
               </tr>
             ))}
             {resources.length === 0 && !loading ? (

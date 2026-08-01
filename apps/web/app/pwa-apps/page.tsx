@@ -441,7 +441,7 @@ export default function PwaAppsPage() {
             创建 PWA
           </button>
           <button className="button secondary" onClick={exportCsv} type="button">
-            Export
+            导出
           </button>
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新

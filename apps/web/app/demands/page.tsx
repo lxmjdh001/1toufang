@@ -415,7 +415,7 @@ export default function DemandsPage() {
             创建 Demand
           </button>
           <button className="button secondary" onClick={exportCsv} type="button">
-            Export
+            导出
           </button>
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新

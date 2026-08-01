@@ -328,7 +328,7 @@ export default function DomainsPage() {
             新增域名
           </button>
           <button className="button secondary" onClick={exportCsv} type="button">
-            Export
+            导出
           </button>
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新

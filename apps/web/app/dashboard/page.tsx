@@ -292,7 +292,7 @@ export default function DashboardPage() {
             刷新
           </button>
           <a className="button primary" href="/integrations?platform=META">
-            Connect Facebook
+            连接 Facebook
           </a>
           <button className="button primary" disabled={syncing} onClick={syncOfficial} type="button">
             {syncing ? "同步中..." : "同步官方数据"}
@@ -468,7 +468,7 @@ export default function DashboardPage() {
               <p>渠道连接、通知和访客统计状态。</p>
             </div>
             <a className="button primary" href="/integrations?platform=META">
-              Connect Facebook
+              连接 Facebook
             </a>
           </div>
           <div className="quick-status-list">

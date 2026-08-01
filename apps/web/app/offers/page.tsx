@@ -372,7 +372,7 @@ export default function OffersPage() {
             创建 Offer
           </button>
           <button className="button secondary" onClick={exportCsv} type="button">
-            Export
+            导出
           </button>
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新
