@@ -202,6 +202,9 @@ export default function FacebookChannelPage() {
   const accountRows = data?.accounts ?? [];
   const resources = data?.resources ?? [];
   const activeResourceLabel = resourceLabels[resource] ?? "资源";
+  const visibleStatusViews = (data?.statusViews ?? []).filter(
+    (tab) => tab.key === "all" || tab.count > 0 || tab.key === status
+  );
 
   async function load(nextStatus = status, nextResource = resource) {
     setLoading(true);
@@ -457,33 +460,33 @@ export default function FacebookChannelPage() {
       ) : null}
 
       <section className="channel-toolbar facebook-channel-toolbar" aria-label="Facebook 渠道筛选">
-        <div className="channel-tab-row">
-          <div className="status-tabs channel-inline-status-tabs">
-            {(data?.statusViews ?? []).map((tab) => (
-              <button
-                className={`status-tab ${status === tab.key ? "active" : ""}`}
-                key={tab.key}
-                onClick={() => changeStatus(tab.key)}
-                type="button"
-              >
-                <span>{tab.label}</span>
-                <strong>{tab.count}</strong>
-              </button>
-            ))}
+        <div className="channel-filter-strip">
+          <div className="channel-filter-group channel-status-filter">
+            <span className="channel-filter-label">状态</span>
+            <div className="status-tabs channel-inline-status-tabs">
+              {visibleStatusViews.map((tab) => (
+                <button
+                  className={`status-tab ${status === tab.key ? "active" : ""}`}
+                  key={tab.key}
+                  onClick={() => changeStatus(tab.key)}
+                  type="button"
+                >
+                  <span>{tab.label}</span>
+                  <strong>{tab.count}</strong>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="resource-tabs channel-inline-resource-tabs">
-            {(data?.resourceTabs ?? []).map((tab) => (
-              <button
-                className={resource === tab.key ? "active" : ""}
-                key={tab.key}
-                onClick={() => changeResource(tab.key)}
-                type="button"
-              >
-                <span>{tab.label}</span>
-                <strong>{tab.count}</strong>
-              </button>
-            ))}
-          </div>
+          <label className="channel-resource-select">
+            <span>资源</span>
+            <select onChange={(event) => changeResource(event.target.value)} value={resource}>
+              {(data?.resourceTabs ?? []).map((tab) => (
+                <option key={tab.key} value={tab.key}>
+                  {tab.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
