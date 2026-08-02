@@ -5,7 +5,7 @@ import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
-import { ApproveUserDto, AssignRoleDto, RejectUserDto, SetUserStatusDto } from "./dto";
+import { ApproveUserDto, AssignRoleDto, RejectUserDto, SetUserStatusDto, UpdateUserAccessDto } from "./dto";
 import { UsersService } from "./users.service";
 
 @ApiTags("User Management")
@@ -60,6 +60,12 @@ export class UsersController {
   @RequirePermissions("users.manage")
   disable(@Param("id") id: string, @Body() dto: SetUserStatusDto, @CurrentUser() user: AuthenticatedUser) {
     return this.usersService.setStatus(id, "DISABLED", { ...dto, actorId: user.id });
+  }
+
+  @Patch(":id/access")
+  @RequirePermissions("users.manage")
+  updateAccess(@Param("id") id: string, @Body() dto: UpdateUserAccessDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.updateAccess(id, { ...dto, actorId: user.id });
   }
 
   @Post(":id/unlock")

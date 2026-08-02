@@ -49,7 +49,7 @@ export class AuthController {
   @Get("me")
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
-    return this.authService.me(user.id);
+    return this.authService.me(user);
   }
 
   private requestMeta(req: RequestLike) {

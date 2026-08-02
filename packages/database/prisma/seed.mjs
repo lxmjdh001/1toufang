@@ -4,6 +4,8 @@ import {
   PrismaClient,
   ReviewStatus,
   TeamMemberStatus,
+  TeamStatus,
+  TeamType,
   UserStatus
 } from "../generated/client/index.js";
 
@@ -55,6 +57,7 @@ async function main() {
       email,
       passwordHash,
       status: UserStatus.ACTIVE,
+      maxTeamCount: 99,
       profile: {
         create: {
           name: "Super Admin",
@@ -72,6 +75,8 @@ async function main() {
     update: {
       passwordHash,
       status: UserStatus.ACTIVE,
+      accessExpiresAt: null,
+      maxTeamCount: 99,
       failedLoginAttempts: 0,
       lockedUntil: null
     }
@@ -82,11 +87,18 @@ async function main() {
     create: {
       id: "seed-team",
       name: "WzzAds Admin",
-      ownerId: user.id
+      ownerId: user.id,
+      type: TeamType.TEAM,
+      seatLimit: 99,
+      status: TeamStatus.ACTIVE
     },
     update: {
       name: "WzzAds Admin",
-      ownerId: user.id
+      ownerId: user.id,
+      type: TeamType.TEAM,
+      seatLimit: 99,
+      status: TeamStatus.ACTIVE,
+      expiresAt: null
     }
   });
 

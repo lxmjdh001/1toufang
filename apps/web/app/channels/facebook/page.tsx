@@ -154,6 +154,8 @@ const accountActions: Array<{ action: string; label: string; danger?: boolean }>
   { action: "charge", label: "充值" }
 ];
 
+const accountPageSizeOptions = [20, 50, 100];
+
 function formatMoney(value?: number) {
   return Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(Number(value ?? 0));
 }
@@ -197,6 +199,8 @@ export default function FacebookChannelPage() {
   const [error, setError] = useState<string | null>(null);
   const [oauthUrl, setOauthUrl] = useState<string | null>(null);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [accountPage, setAccountPage] = useState(1);
+  const [accountPageSize, setAccountPageSize] = useState(20);
 
   const overview = data?.overview;
   const accountRows = data?.accounts ?? [];
@@ -205,6 +209,16 @@ export default function FacebookChannelPage() {
   const visibleStatusViews = (data?.statusViews ?? []).filter(
     (tab) => tab.key === "all" || tab.count > 0 || tab.key === status
   );
+  const accountTotal = accountRows.length;
+  const accountPageCount = Math.max(1, Math.ceil(accountTotal / accountPageSize));
+  const currentAccountPage = Math.min(accountPage, accountPageCount);
+  const accountStartIndex = accountTotal ? (currentAccountPage - 1) * accountPageSize : 0;
+  const accountEndIndex = Math.min(accountStartIndex + accountPageSize, accountTotal);
+  const paginatedAccountRows = accountRows.slice(accountStartIndex, accountEndIndex);
+  const accountPageNumbers = Array.from({ length: Math.min(accountPageCount, 5) }, (_, index) => {
+    const start = Math.min(Math.max(currentAccountPage - 2, 1), Math.max(accountPageCount - 4, 1));
+    return start + index;
+  });
 
   async function load(nextStatus = status, nextResource = resource) {
     setLoading(true);
@@ -305,13 +319,20 @@ export default function FacebookChannelPage() {
   }
 
   function changeStatus(nextStatus: StatusKey) {
+    setAccountPage(1);
     setStatus(nextStatus);
     void load(nextStatus, resource);
   }
 
   function changeResource(nextResource: string) {
+    setAccountPage(1);
     setResource(nextResource);
     void load(status, nextResource);
+  }
+
+  function changeAccountPageSize(nextPageSize: number) {
+    setAccountPageSize(nextPageSize);
+    setAccountPage(1);
   }
 
   function exportAccounts() {
@@ -366,6 +387,10 @@ export default function FacebookChannelPage() {
     );
     downloadCsv("facebook-channel-report.csv", [headers.map(csvCell), ...complianceRows, ...transactionRows]);
   }
+
+  useEffect(() => {
+    setAccountPage((current) => Math.min(current, accountPageCount));
+  }, [accountPageCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -498,80 +523,148 @@ export default function FacebookChannelPage() {
             <span className="muted">状态视图：{statusLabel(status)} / 当前资源：{activeResourceLabel}</span>
           </div>
         </div>
-        <table className="channel-account-table">
-          <thead>
-            <tr>
-              <th>名称</th>
-              <th>广告账户</th>
-              <th>用户</th>
-              <th>账单</th>
-              <th>合作伙伴</th>
-              <th>货币</th>
-              <th>广告</th>
-              <th>闲置</th>
-              <th>余额</th>
-              <th>总消耗</th>
-              <th>消耗</th>
-              <th>时区</th>
-              <th>像素</th>
-              <th>移除广告</th>
-              <th>备注</th>
-              <th>创建时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accountRows.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <div className="channel-name-cell">
-                    <strong title={row.name}>{row.name}</strong>
-                    <span className={statusClass(row.statusView)}>{statusLabel(row.statusView)}</span>
-                  </div>
-                </td>
-                <td>{row.accountId}</td>
-                <td>{row.user}</td>
-                <td>{row.billing}</td>
-                <td className="partner-cell">
-                  <span title={row.partner}>{row.partner}</span>
-                </td>
-                <td>{row.currency}</td>
-                <td>{formatNumber(row.ads)}</td>
-                <td>{row.idleDays} 天</td>
-                <td>{formatMoney(row.balance)}</td>
-                <td>{formatMoney(row.totalSpend)}</td>
-                <td>{formatMoney(row.spend)}</td>
-                <td>{row.timezone}</td>
-                <td>{formatNumber(row.pixels)}</td>
-                <td>{formatNumber(row.removedAds)}</td>
-                <td className="notes-cell" title={row.notes}>
-                  {row.notes}
-                </td>
-                <td>{formatDate(row.createdAt)}</td>
-                <td>
-                  <div className="row-actions">
-                    {accountActions.map(({ action, label, danger }) => (
-                      <button
-                        className={danger ? "button danger" : "button secondary"}
-                        disabled={busyId === `${row.id}:${action}`}
-                        key={action}
-                        onClick={() => void runAccountAction(row, action)}
-                        type="button"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {accountRows.length === 0 && !loading ? (
+        <div className="channel-table-scroll">
+          <table className="channel-account-table">
+            <thead>
               <tr>
-                <td colSpan={17}>暂无 Facebook 广告账户</td>
+                <th>名称</th>
+                <th>广告账户</th>
+                <th>用户</th>
+                <th>账单</th>
+                <th>合作伙伴</th>
+                <th>货币</th>
+                <th>广告</th>
+                <th>闲置</th>
+                <th>余额</th>
+                <th>总消耗</th>
+                <th>消耗</th>
+                <th>时区</th>
+                <th>像素</th>
+                <th>移除广告</th>
+                <th>备注</th>
+                <th>创建时间</th>
+                <th>操作</th>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedAccountRows.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    <div className="channel-name-cell">
+                      <strong title={row.name}>{row.name}</strong>
+                      <span className={statusClass(row.statusView)}>{statusLabel(row.statusView)}</span>
+                    </div>
+                  </td>
+                  <td>{row.accountId}</td>
+                  <td>{row.user}</td>
+                  <td>{row.billing}</td>
+                  <td className="partner-cell">
+                    <span title={row.partner}>{row.partner}</span>
+                  </td>
+                  <td>{row.currency}</td>
+                  <td>{formatNumber(row.ads)}</td>
+                  <td>{row.idleDays} 天</td>
+                  <td>{formatMoney(row.balance)}</td>
+                  <td>{formatMoney(row.totalSpend)}</td>
+                  <td>{formatMoney(row.spend)}</td>
+                  <td>{row.timezone}</td>
+                  <td>{formatNumber(row.pixels)}</td>
+                  <td>{formatNumber(row.removedAds)}</td>
+                  <td className="notes-cell" title={row.notes}>
+                    {row.notes}
+                  </td>
+                  <td>{formatDate(row.createdAt)}</td>
+                  <td>
+                    <div className="row-actions">
+                      {accountActions.map(({ action, label, danger }) => (
+                        <button
+                          className={danger ? "button danger" : "button secondary"}
+                          disabled={busyId === `${row.id}:${action}`}
+                          key={action}
+                          onClick={() => void runAccountAction(row, action)}
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {accountRows.length === 0 && !loading ? (
+                <tr>
+                  <td colSpan={17}>暂无 Facebook 广告账户</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+        <div className="table-pagination">
+          <span>
+            共 {formatNumber(accountTotal)} 条，当前{" "}
+            {accountTotal ? `${formatNumber(accountStartIndex + 1)}-${formatNumber(accountEndIndex)}` : "0"} 条
+          </span>
+          <div className="pagination-controls">
+            <label>
+              每页
+              <select
+                onChange={(event) => changeAccountPageSize(Number(event.target.value))}
+                value={accountPageSize}
+              >
+                {accountPageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              条
+            </label>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentAccountPage <= 1}
+              onClick={() => setAccountPage(1)}
+              type="button"
+            >
+              首页
+            </button>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentAccountPage <= 1}
+              onClick={() => setAccountPage((page) => Math.max(1, page - 1))}
+              type="button"
+            >
+              上一页
+            </button>
+            <div className="pagination-pages">
+              {accountPageNumbers.map((page) => (
+                <button
+                  className={`pagination-page ${page === currentAccountPage ? "active" : ""}`}
+                  key={page}
+                  onClick={() => setAccountPage(page)}
+                  type="button"
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentAccountPage >= accountPageCount}
+              onClick={() => setAccountPage((page) => Math.min(accountPageCount, page + 1))}
+              type="button"
+            >
+              下一页
+            </button>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentAccountPage >= accountPageCount}
+              onClick={() => setAccountPage(accountPageCount)}
+              type="button"
+            >
+              末页
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="table-panel">

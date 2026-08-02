@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { EmployeeStatus } from "@1toufang/database/client";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { EmployeeStatus, TeamStatus } from "@1toufang/database/client";
 import { DatabaseService } from "../database/database.service";
 import { CreateEmployeeAccountDto, UpdateEmployeeAccountDto } from "./dto";
 
@@ -14,7 +14,20 @@ export class EmployeeAccountsService {
     });
   }
 
-  create(dto: CreateEmployeeAccountDto) {
+  async create(dto: CreateEmployeeAccountDto) {
+    const team = await this.db.team.findUnique({ where: { id: dto.teamId } });
+    if (!team) throw new NotFoundException("Team not found");
+    if (team.status !== TeamStatus.ACTIVE || (team.expiresAt && team.expiresAt <= new Date())) {
+      throw new BadRequestException("团队未启用或已到期，不能新增员工号");
+    }
+
+    const activeEmployees = await this.db.employeeAccount.count({
+      where: { teamId: dto.teamId, status: EmployeeStatus.ACTIVE }
+    });
+    if (activeEmployees >= team.seatLimit) {
+      throw new BadRequestException(`该团队最多可开通 ${team.seatLimit} 个员工号`);
+    }
+
     return this.db.employeeAccount.create({
       data: {
         employeeNo: dto.employeeNo,

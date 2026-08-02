@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { EmployeeStatus, TeamMemberStatus } from "@1toufang/database/client";
+import { EmployeeStatus, TeamMemberStatus, TeamStatus } from "@1toufang/database/client";
 import { REQUIRED_PERMISSIONS_KEY } from "../decorators/permissions.decorator";
 import { AuthenticatedRequest } from "../types/authenticated-request";
 import { DatabaseService } from "../../database/database.service";
@@ -45,6 +45,7 @@ export class PermissionGuard implements CanActivate {
       const employee = await this.db.employeeAccount.findUnique({
         where: { employeeNo },
         include: {
+          team: true,
           role: {
             include: {
               permissions: { include: { permission: true } }
@@ -53,7 +54,12 @@ export class PermissionGuard implements CanActivate {
         }
       });
 
-      if (employee?.userId === userId && employee.status === EmployeeStatus.ACTIVE) {
+      if (
+        employee?.userId === userId &&
+        employee.status === EmployeeStatus.ACTIVE &&
+        employee.team.status === TeamStatus.ACTIVE &&
+        (!employee.team.expiresAt || employee.team.expiresAt > new Date())
+      ) {
         for (const rolePermission of employee.role?.permissions ?? []) {
           granted.add(rolePermission.permission.code);
         }
@@ -64,7 +70,11 @@ export class PermissionGuard implements CanActivate {
       where: {
         userId,
         status: TeamMemberStatus.ACTIVE,
-        ...(teamId ? { teamId } : {})
+        ...(teamId ? { teamId } : {}),
+        team: {
+          status: TeamStatus.ACTIVE,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+        }
       },
       include: {
         role: {

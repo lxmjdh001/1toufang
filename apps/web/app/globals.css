@@ -1145,6 +1145,15 @@ button:disabled {
   min-width: 220px;
 }
 
+.access-fields {
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  min-width: 280px;
+}
+
+.access-fields input:last-child {
+  grid-column: 1 / -1;
+}
+
 .campaign-form-actions {
   align-items: center;
   display: flex;
@@ -1670,6 +1679,14 @@ button:disabled {
   margin-top: 14px;
 }
 
+.table-panel.channel-table-panel {
+  overflow: hidden;
+}
+
+.channel-table-scroll {
+  overflow-x: auto;
+}
+
 .channel-account-table {
   min-width: 2460px;
   table-layout: fixed;
@@ -1812,6 +1829,81 @@ button:disabled {
 .channel-resource-table th,
 .channel-resource-table td {
   white-space: nowrap;
+}
+
+.table-pagination {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.pagination-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pagination-controls label {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pagination-controls select {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #344054;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 0 8px;
+}
+
+.pagination-button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.pagination-pages {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.pagination-page {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #344054;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 900;
+  height: 34px;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0 10px;
+}
+
+.pagination-page.active {
+  background: #e8f1ff;
+  border-color: #b7cdf5;
+  color: var(--primary);
+}
+
+.pagination-controls .button {
+  width: auto;
 }
 
 .channel-filter-panel {
@@ -2944,11 +3036,102 @@ button:disabled {
   min-width: 210px;
 }
 
+.row-actions.nowrap {
+  flex-wrap: nowrap;
+}
+
 .row-actions .button {
   border-radius: 7px;
   font-size: 12px;
   min-height: 28px;
   padding: 0 8px;
+}
+
+.admin-user-table,
+.admin-team-table {
+  min-width: 1280px;
+}
+
+.admin-user-table th,
+.admin-user-table td,
+.admin-team-table th,
+.admin-team-table td {
+  vertical-align: middle;
+}
+
+.admin-user-table th,
+.admin-team-table th {
+  white-space: nowrap;
+}
+
+.admin-user-table td:nth-child(1),
+.admin-user-table td:nth-child(2),
+.admin-team-table td:nth-child(1),
+.admin-team-table td:nth-child(2) {
+  max-width: 220px;
+}
+
+.admin-user-table td:nth-child(1) strong,
+.admin-user-table td:nth-child(2) strong,
+.admin-team-table td:nth-child(1) strong,
+.admin-team-table td:nth-child(2) strong,
+.admin-user-table .muted,
+.admin-team-table .muted {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.team-form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.team-notes-field {
+  grid-column: span 2;
+}
+
+.team-member-panel {
+  margin-top: 16px;
+}
+
+.team-member-form {
+  align-items: end;
+}
+
+.team-member-action .button {
+  width: fit-content;
+}
+
+.team-member-list {
+  display: grid;
+  gap: 5px;
+  max-width: 300px;
+}
+
+.team-member-list span {
+  align-items: center;
+  color: #344054;
+  display: flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.team-member-list button {
+  background: #eef2f7;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 24px;
+  padding: 0 7px;
 }
 
 .group-row td {

@@ -10,12 +10,15 @@ import {
   EmployeeStatus,
   LoginMethod,
   ReviewStatus,
+  TeamMemberStatus,
+  TeamStatus,
   User,
   UserStatus
 } from "@1toufang/database/client";
 import * as bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { DatabaseService } from "../database/database.service";
+import { AuthenticatedUser } from "../common/types/authenticated-request";
 import { EmployeeLoginDto, LoginDto, RegisterDto } from "./dto";
 
 type RequestMeta = {
@@ -97,6 +100,7 @@ export class AuthService {
     }
 
     this.assertUserCanLogin(user);
+    const membership = await this.resolveActiveMembership(user.id);
 
     await this.db.user.update({
       where: { id: user.id },
@@ -108,13 +112,13 @@ export class AuthService {
     });
     await this.logLogin(user.id, LoginMethod.EMAIL, true, null, meta);
 
-    return this.issueTokens(user, { method: LoginMethod.EMAIL }, meta);
+    return this.issueTokens(user, { method: LoginMethod.EMAIL, teamId: membership.teamId, roleId: membership.roleId }, meta);
   }
 
   async employeeLogin(dto: EmployeeLoginDto, meta: RequestMeta) {
     const employee = await this.db.employeeAccount.findUnique({
       where: { employeeNo: dto.employeeNo },
-      include: { user: true }
+      include: { user: true, team: true }
     });
 
     if (!employee) {
@@ -126,6 +130,8 @@ export class AuthService {
       await this.logLogin(employee.userId, LoginMethod.EMPLOYEE_NO, false, "EMPLOYEE_DISABLED", meta, dto.employeeNo);
       throw new ForbiddenException("Employee account is disabled");
     }
+
+    this.assertTeamCanLogin(employee.team);
 
     const passwordOk = await bcrypt.compare(dto.password, employee.user.passwordHash);
     if (!passwordOk) {
@@ -173,20 +179,17 @@ export class AuthService {
 
       const user = await this.db.user.findUniqueOrThrow({ where: { id: payload.sub } });
       this.assertUserCanLogin(user);
+      const context = await this.resolveTokenContext(user.id, {
+        method: payload.method,
+        teamId: payload.teamId,
+        roleId: payload.roleId,
+        employeeNo: payload.employeeNo
+      });
       await this.db.session.update({
         where: { id: session.id },
         data: { revokedAt: new Date() }
       });
-      return this.issueTokens(
-        user,
-        {
-          method: payload.method,
-          teamId: payload.teamId,
-          roleId: payload.roleId,
-          employeeNo: payload.employeeNo
-        },
-        meta
-      );
+      return this.issueTokens(user, context, meta);
     }
 
     throw new UnauthorizedException("Invalid refresh token");
@@ -214,9 +217,9 @@ export class AuthService {
     return { ok: true };
   }
 
-  me(userId: string) {
-    return this.db.user.findUniqueOrThrow({
-      where: { id: userId },
+  async me(authenticatedUser: AuthenticatedUser) {
+    const user = await this.db.user.findUniqueOrThrow({
+      where: { id: authenticatedUser.id },
       include: {
         profile: true,
         employeeAccounts: { include: { team: true, role: true } },
@@ -233,6 +236,14 @@ export class AuthService {
         }
       }
     });
+    this.assertUserCanLogin(user);
+    await this.resolveTokenContext(user.id, {
+      method: authenticatedUser.method,
+      teamId: authenticatedUser.teamId,
+      roleId: authenticatedUser.roleId,
+      employeeNo: authenticatedUser.employeeNo
+    });
+    return user;
   }
 
   private assertUserCanLogin(user: User) {
@@ -243,6 +254,79 @@ export class AuthService {
         message: this.statusMessage(user.status)
       });
     }
+
+    if (user.accessExpiresAt && user.accessExpiresAt <= new Date()) {
+      throw new ForbiddenException({
+        code: "access_expired",
+        message: "账号开通已到期，请联系管理员续期"
+      });
+    }
+  }
+
+  private assertTeamCanLogin(team: { status: TeamStatus; expiresAt: Date | null }) {
+    if (team.status !== TeamStatus.ACTIVE) {
+      throw new ForbiddenException({
+        code: "team_inactive",
+        message: "团队未启用，请联系管理员"
+      });
+    }
+
+    if (team.expiresAt && team.expiresAt <= new Date()) {
+      throw new ForbiddenException({
+        code: "team_expired",
+        message: "团队开通已到期，请联系管理员续期"
+      });
+    }
+  }
+
+  private async resolveTokenContext(userId: string, context: TokenContext): Promise<TokenContext> {
+    if (context.method === LoginMethod.EMPLOYEE_NO && context.employeeNo) {
+      const employee = await this.db.employeeAccount.findUnique({
+        where: { employeeNo: context.employeeNo },
+        include: { team: true }
+      });
+      if (!employee || employee.userId !== userId || employee.status !== EmployeeStatus.ACTIVE) {
+        throw new ForbiddenException("Employee account is disabled");
+      }
+      this.assertTeamCanLogin(employee.team);
+      return {
+        ...context,
+        teamId: employee.teamId,
+        roleId: employee.roleId
+      };
+    }
+
+    const membership = await this.resolveActiveMembership(userId, context.teamId);
+    return {
+      method: LoginMethod.EMAIL,
+      teamId: membership.teamId,
+      roleId: membership.roleId
+    };
+  }
+
+  private async resolveActiveMembership(userId: string, teamId?: string) {
+    const membership = await this.db.teamMember.findFirst({
+      where: {
+        userId,
+        status: TeamMemberStatus.ACTIVE,
+        ...(teamId ? { teamId } : {}),
+        team: {
+          status: TeamStatus.ACTIVE,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+        }
+      },
+      include: { team: true },
+      orderBy: { createdAt: "asc" }
+    });
+
+    if (!membership) {
+      throw new ForbiddenException({
+        code: "team_unavailable",
+        message: "没有可用团队，请联系管理员开通或续期"
+      });
+    }
+
+    return membership;
   }
 
   private statusMessage(status: UserStatus) {

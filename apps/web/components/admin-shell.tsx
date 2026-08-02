@@ -149,7 +149,8 @@ const sections = [
     label: "系统管理",
     icon: <IconSetting />,
     links: [
-      { href: "/admin/users", label: "用户审核" },
+      { href: "/admin/users", label: "系统用户" },
+      { href: "/admin/teams", label: "团队管理" },
       { href: "/admin/employees", label: "员工管理" },
       { href: "/admin/permissions", label: "权限角色" },
       { href: "/admin/platform-configs", label: "开发者密钥" }

@@ -63,6 +63,17 @@ enum TeamMemberStatus {
   DISABLED
 }
 
+enum TeamType {
+  PERSONAL
+  TEAM
+}
+
+enum TeamStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+}
+
 enum PublishStatus {
   DRAFT
   CREATING
@@ -101,6 +112,8 @@ model User {
   email               String              @unique
   passwordHash        String
   status              UserStatus          @default(PENDING_REVIEW)
+  accessExpiresAt     DateTime?
+  maxTeamCount        Int                 @default(1)
   failedLoginAttempts Int                 @default(0)
   lockedUntil         DateTime?
   lastLoginAt         DateTime?
@@ -156,6 +169,11 @@ model Team {
   id                  String               @id @default(cuid())
   name                String
   ownerId             String?
+  type                TeamType             @default(PERSONAL)
+  seatLimit           Int                  @default(1)
+  status              TeamStatus           @default(ACTIVE)
+  expiresAt           DateTime?
+  notes               String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
