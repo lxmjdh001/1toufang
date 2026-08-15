@@ -497,7 +497,7 @@ export class PublisherService {
     );
     const campaignId = this.requireProviderId(extractTikTokId(campaign.data, "campaign_id"), "TikTok 未返回 Campaign ID");
 
-    const adGroupPayload = this.buildTikTokAdGroupPayload(context, campaignId);
+    const adGroupPayload = await this.buildTikTokAdGroupPayload(context, campaignId);
     const adGroup = await this.postTikTokObject<TikTokCreateResponse>(
       context,
       new URL("/open_api/v1.3/adgroup/create/", apiBaseUrl).toString(),
@@ -545,7 +545,7 @@ export class PublisherService {
     );
     const targeting = mergeRecords(
       { geo_locations: { countries: ["US"] }, age_min: 18, age_max: 65 },
-      recordValue(context.targeting?.config),
+      buildMetaTargeting(asRecord(context.targeting?.config)),
       recordValue(targetingRecord(context.targeting, "targeting")),
       recordValue(targetingRecord(context.targeting, "metaTargeting")),
       recordValue(config.targeting)
@@ -714,17 +714,19 @@ export class PublisherService {
     );
   }
 
-  private buildTikTokAdGroupPayload(context: PublishContext, campaignId: string) {
+  private async buildTikTokAdGroupPayload(context: PublishContext, campaignId: string) {
     const now = new Date();
     const end = new Date(now);
     end.setUTCDate(end.getUTCDate() + 30);
+    const targetingConfig = asRecord(context.targeting?.config);
+    const locationIds = await this.resolveTikTokLocationIds(context, targetingConfig);
+    const targeting = buildTikTokTargeting(targetingConfig, locationIds);
     return mergeRecords(
       {
         advertiser_id: context.adAccount.externalId,
         campaign_id: campaignId,
         adgroup_name: `${context.campaign.name} Ad Group`,
         placement_type: "PLACEMENT_TYPE_NORMAL",
-        placements: ["PLACEMENT_TIKTOK"],
         promotion_type: "WEBSITE",
         optimization_goal: strategyValue(context.strategy, "optimization_goal") ?? "CLICK",
         billing_event: strategyValue(context.strategy, "billing_event") ?? "CPC",
@@ -733,14 +735,62 @@ export class PublisherService {
         budget: context.config.budget ?? 20,
         schedule_type: "SCHEDULE_START_END",
         schedule_start_time: formatTikTokDateTime(now),
-        schedule_end_time: formatTikTokDateTime(end)
+        schedule_end_time: formatTikTokDateTime(end),
+        ...targeting
       },
-      recordValue(context.targeting?.config),
       recordValue(targetingRecord(context.targeting, "adGroup")),
       recordValue(targetingRecord(context.targeting, "tiktokAdGroup")),
       recordValue(context.config.adGroup),
       recordValue(context.config.tiktok?.adGroup)
     );
+  }
+
+  private async resolveTikTokLocationIds(context: PublishContext, config: Record<string, unknown>) {
+    const selected = [
+      ...stringArray(config.countries),
+      ...stringArray(config.regions),
+      ...stringArray(config.cities)
+    ];
+    const directIds = selected.filter((value) => /^\d+$/.test(value));
+    const unresolved = selected.filter((value) => !/^\d+$/.test(value));
+    if (!unresolved.length) return directIds.length ? directIds : ["6252001"];
+    if (context.dryRun) {
+      return Array.from(new Set([...directIds, ...(unresolved.some((value) => value.toUpperCase() === "US") ? ["6252001"] : [])]));
+    }
+
+    const placements = tiktokPlacements(config);
+    const objectiveType =
+      context.config.objective_type ??
+      context.config.objective ??
+      strategyValue(context.strategy, "objective_type") ??
+      strategyValue(context.strategy, "objective") ??
+      "TRAFFIC";
+    const params = new URLSearchParams({
+      advertiser_id: context.adAccount.externalId,
+      placements: JSON.stringify(placements),
+      objective_type: objectiveType,
+      level_range: "TO_CITY",
+      language: "en"
+    });
+    const baseUrl = this.config.get<string>("TIKTOK_API_BASE_URL") ?? "https://business-api.tiktok.com";
+    const response = await this.fetchJson<TikTokCreateResponse>(
+      new URL(`/open_api/v1.3/tool/region/?${params.toString()}`, baseUrl).toString(),
+      { headers: { "Access-Token": this.requireToken(context.accessToken) } }
+    );
+    const providerCode = Number(response.code ?? 0);
+    if (!Number.isNaN(providerCode) && providerCode !== 0) {
+      throw new BadRequestException(response.message ?? "TikTok 地域数据读取失败");
+    }
+
+    const normalized = new Set(unresolved.map((value) => value.trim().toLowerCase()));
+    const rows = recordArray(asRecord(response.data).region_info);
+    const resolved = rows
+      .filter((row) => [row.location_id, row.region_code, row.name].some((value) => normalized.has(String(value ?? "").trim().toLowerCase())))
+      .map((row) => stringValue(row.location_id))
+      .filter((value): value is string => Boolean(value));
+    const locationIds = Array.from(new Set([...directIds, ...resolved]));
+    if (!locationIds.length) throw new BadRequestException("TikTok 定向中没有可用的官方地域 ID");
+    return locationIds;
   }
 
   private buildTikTokAdPayload(context: PublishContext, adGroupId: string) {
@@ -959,6 +1009,19 @@ function arrayValue(value: unknown): unknown[] | undefined {
   return Array.isArray(value) ? value : undefined;
 }
 
+function recordArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => asRecord(item)) : [];
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean) : [];
+}
+
+function numberValue(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function mergeRecords(...records: Array<Record<string, unknown> | undefined>) {
   const merged: Record<string, unknown> = {};
   for (const record of records) {
@@ -976,6 +1039,194 @@ function removeKeys(record: Record<string, unknown>, keys: string[]) {
     delete next[key];
   }
   return next;
+}
+
+function buildMetaTargeting(config: Record<string, unknown>) {
+  const countries = stringArray(config.countries)
+    .filter((value) => /^[a-z]{2}$/i.test(value))
+    .map((value) => value.toUpperCase());
+  const regions = numericStrings(config.regions).map((key) => ({ key }));
+  const cities = numericStrings(config.cities).map((key) => ({ key }));
+  const locales = numericStrings(config.languages).map(Number);
+  const genders = stringArray(config.genders).flatMap((value) => (value === "MALE" ? [1] : value === "FEMALE" ? [2] : []));
+  const interests = numericStrings(config.interests).map((id) => ({ id }));
+  const behaviors = numericStrings(config.behaviors).map((id) => ({ id }));
+  const customAudiences = numericStrings(config.customAudiences).map((id) => ({ id }));
+  const excludedInterests = numericStrings(config.excludedInterests).map((id) => ({ id }));
+  const excludedAudiences = numericStrings(config.excludedCustomAudiences).map((id) => ({ id }));
+  const publisherPlatforms = stringArray(config.placementPlatforms).filter((value) =>
+    ["facebook", "instagram", "audience_network", "messenger", "whatsapp", "threads"].includes(value)
+  );
+  const devicePlatforms = config.deviceType === "mobile" ? ["mobile"] : config.deviceType === "desktop" ? ["desktop"] : [];
+  const userOs = Array.from(
+    new Set(
+      stringArray(config.operatingSystems).flatMap((value) => {
+        if (value === "android") return ["Android"];
+        if (value === "ios") return ["iOS"];
+        if (value === "windows") return ["Windows"];
+        if (value === "macos") return ["macOS"];
+        return [];
+      })
+    )
+  );
+  const exclusions = mergeRecords(
+    excludedInterests.length ? { interests: excludedInterests } : undefined,
+    excludedAudiences.length ? { custom_audiences: excludedAudiences } : undefined
+  );
+  const placementPositions = metaPlacementPositions(config);
+
+  return {
+    ...(countries.length || regions.length || cities.length
+      ? {
+          geo_locations: {
+            ...(countries.length ? { countries } : {}),
+            ...(regions.length ? { regions } : {}),
+            ...(cities.length ? { cities } : {})
+          }
+        }
+      : {}),
+    ...(numberValue(config.ageMin) !== undefined ? { age_min: numberValue(config.ageMin) } : {}),
+    ...(numberValue(config.ageMax) !== undefined ? { age_max: numberValue(config.ageMax) } : {}),
+    ...(genders.length ? { genders } : {}),
+    ...(locales.length ? { locales } : {}),
+    ...(interests.length ? { interests } : {}),
+    ...(behaviors.length ? { behaviors } : {}),
+    ...(customAudiences.length ? { custom_audiences: customAudiences } : {}),
+    ...(publisherPlatforms.length ? { publisher_platforms: publisherPlatforms } : {}),
+    ...(devicePlatforms.length ? { device_platforms: devicePlatforms } : {}),
+    ...(userOs.length ? { user_os: userOs } : {}),
+    ...(Object.keys(exclusions).length ? { exclusions } : {}),
+    ...placementPositions
+  };
+}
+
+function metaPlacementPositions(config: Record<string, unknown>) {
+  const mappings: Array<[string, string, Record<string, string>]> = [
+    [
+      "facebookPlacements",
+      "facebook_positions",
+      {
+        facebook_feed: "feed",
+        facebook_stories: "story",
+        facebook_reels: "facebook_reels",
+        facebook_reels_overlay: "facebook_reels_overlay",
+        facebook_search: "search",
+        facebook_marketplace: "marketplace"
+      }
+    ],
+    [
+      "instagramPlacements",
+      "instagram_positions",
+      {
+        instagram_feed: "stream",
+        instagram_stories: "story",
+        instagram_reels: "reels",
+        instagram_explore: "explore",
+        instagram_search: "search"
+      }
+    ],
+    [
+      "audienceNetworkPlacements",
+      "audience_network_positions",
+      {
+        audience_network_native: "classic",
+        audience_network_rewarded: "rewarded_video",
+        audience_network_instream: "instream_video"
+      }
+    ],
+    [
+      "messengerPlacements",
+      "messenger_positions",
+      {
+        messenger_inbox: "messenger_home",
+        messenger_stories: "story",
+        messenger_sponsored_messages: "sponsored_messages"
+      }
+    ]
+  ];
+  const result: Record<string, unknown> = {};
+  for (const [source, target, mapping] of mappings) {
+    const positions = stringArray(config[source]).map((value) => mapping[value]).filter(Boolean);
+    if (positions.length) result[target] = Array.from(new Set(positions));
+  }
+  return result;
+}
+
+function buildTikTokTargeting(config: Record<string, unknown>, locationIds: string[]) {
+  const tagged = tiktokTargetingGroups(stringArray(config.interests));
+  const customAudiences = numericStrings(config.customAudiences);
+  const excludedAudiences = numericStrings(config.excludedCustomAudiences);
+  const operatingSystems = Array.from(
+    new Set(
+      stringArray(config.operatingSystems).flatMap((value) => {
+        if (value === "android") return ["ANDROID"];
+        if (value === "ios") return ["IOS"];
+        if (value === "windows" || value === "macos") return ["PC"];
+        return [];
+      })
+    )
+  );
+  if (config.deviceType === "desktop" && !operatingSystems.includes("PC")) operatingSystems.push("PC");
+
+  return {
+    location_ids: locationIds,
+    placements: tiktokPlacements(config),
+    gender: tiktokGender(stringArray(config.genders)),
+    age_groups: tiktokAgeGroups(numberValue(config.ageMin), numberValue(config.ageMax)),
+    ...(stringArray(config.languages).length ? { languages: stringArray(config.languages) } : {}),
+    ...(tagged.GENERAL_INTEREST.length ? { interest_category_ids: tagged.GENERAL_INTEREST } : {}),
+    ...(tagged.ADDITIONAL_INTEREST.length ? { interest_keyword_ids: tagged.ADDITIONAL_INTEREST } : {}),
+    ...(tagged.PURCHASE_INTENTION.length ? { purchase_intention_keyword_ids: tagged.PURCHASE_INTENTION } : {}),
+    ...(customAudiences.length ? { audience_ids: customAudiences } : {}),
+    ...(excludedAudiences.length ? { excluded_audience_ids: excludedAudiences } : {}),
+    ...(operatingSystems.length ? { operating_systems: operatingSystems } : {}),
+    ...(config.wifiOnly ? { network_types: ["WIFI"] } : {})
+  };
+}
+
+function numericStrings(value: unknown) {
+  return stringArray(value).filter((item) => /^\d+$/.test(item));
+}
+
+function tiktokTargetingGroups(values: string[]) {
+  const groups: Record<"GENERAL_INTEREST" | "ADDITIONAL_INTEREST" | "PURCHASE_INTENTION", string[]> = {
+    GENERAL_INTEREST: [],
+    ADDITIONAL_INTEREST: [],
+    PURCHASE_INTENTION: []
+  };
+  for (const value of values) {
+    const match = /^tt:(GENERAL_INTEREST|ADDITIONAL_INTEREST|PURCHASE_INTENTION):(\d+)$/.exec(value);
+    if (match) groups[match[1] as keyof typeof groups].push(match[2]);
+    else if (/^\d+$/.test(value)) groups.GENERAL_INTEREST.push(value);
+  }
+  return groups;
+}
+
+function tiktokPlacements(config: Record<string, unknown>) {
+  const placements = stringArray(config.placementPlatforms).filter((value) =>
+    ["PLACEMENT_TIKTOK", "PLACEMENT_PANGLE", "PLACEMENT_GLOBAL_APP_BUNDLE"].includes(value)
+  );
+  return placements.length ? placements : ["PLACEMENT_TIKTOK"];
+}
+
+function tiktokGender(genders: string[]) {
+  if (genders.includes("MALE")) return "GENDER_MALE";
+  if (genders.includes("FEMALE")) return "GENDER_FEMALE";
+  return "GENDER_UNLIMITED";
+}
+
+function tiktokAgeGroups(ageMin?: number, ageMax?: number) {
+  const min = ageMin ?? 18;
+  const max = ageMax ?? 65;
+  return [
+    { value: "AGE_18_24", min: 18, max: 24 },
+    { value: "AGE_25_34", min: 25, max: 34 },
+    { value: "AGE_35_44", min: 35, max: 44 },
+    { value: "AGE_45_54", min: 45, max: 54 },
+    { value: "AGE_55_100", min: 55, max: 100 }
+  ]
+    .filter((group) => group.max >= min && group.min <= max)
+    .map((group) => group.value);
 }
 
 function strategyRecord(strategy: Strategy | null, key: string) {

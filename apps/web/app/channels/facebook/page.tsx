@@ -426,7 +426,7 @@ export default function FacebookChannelPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <section className="metric-grid compact-metrics facebook-channel-metrics">
         <div className="metric metric-strong">
           <span>钱包余额</span>
           <strong>{formatMoney(overview?.walletBalance)}</strong>

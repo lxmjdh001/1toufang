@@ -10,11 +10,6 @@ type ResourceTab = {
   count: number;
 };
 
-type FieldOption = {
-  key: string;
-  label: string;
-};
-
 type TikTokOverview = {
   accounts: number;
   businessCenters: number;
@@ -52,7 +47,6 @@ type TikTokChannelResponse = {
   overview: TikTokOverview;
   resourceTabs: ResourceTab[];
   resources: TikTokResource[];
-  fieldOptions: FieldOption[];
   tasks: TikTokTask[];
   updatedAt: string;
 };
@@ -69,7 +63,28 @@ type SyncResult = {
   errors: Array<{ message: string }>;
 };
 
-const defaultFields = ["type", "name", "externalId", "status", "updatedAt"];
+const resourceLabels: Record<string, string> = {
+  accounts: "账号",
+  business_centers: "商务中心",
+  advertisers: "广告主",
+  catalogs: "Catalog",
+  feeds: "Feed",
+  products: "商品",
+  apps: "App"
+};
+
+const statusLabels: Record<string, string> = {
+  active: "启用",
+  manual: "手动",
+  synced: "已同步",
+  succeeded: "成功",
+  failed: "失败",
+  pending: "待处理",
+  running: "运行中",
+  disabled: "停用"
+};
+
+const resourcePageSizeOptions = [20, 50, 100];
 
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString("zh-CN") : "-";
@@ -87,20 +102,31 @@ function statusClass(status: string) {
   return "pill";
 }
 
+function statusLabel(status?: string) {
+  if (!status) return "-";
+  return statusLabels[status.toLowerCase()] ?? status;
+}
+
+function csvCell(value: unknown) {
+  return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
+}
+
 export default function TikTokChannelPage() {
   const [data, setData] = useState<TikTokChannelResponse | null>(null);
   const [resource, setResource] = useState("advertisers");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const [visibleFields, setVisibleFields] = useState<string[]>(defaultFields);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [oauthUrl, setOauthUrl] = useState<string | null>(null);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [resourcePage, setResourcePage] = useState(1);
+  const [resourcePageSize, setResourcePageSize] = useState(20);
 
   const overview = data?.overview;
+  const activeResourceLabel = resourceLabels[resource] ?? data?.resourceTabs.find((tab) => tab.key === resource)?.label ?? "资源";
   const resources = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return (data?.resources ?? []).filter((row) => {
@@ -113,6 +139,16 @@ export default function TikTokChannelPage() {
       return matchesKeyword && matchesStatus;
     });
   }, [data?.resources, search, status]);
+  const resourceTotal = resources.length;
+  const resourcePageCount = Math.max(1, Math.ceil(resourceTotal / resourcePageSize));
+  const currentResourcePage = Math.min(resourcePage, resourcePageCount);
+  const resourceStartIndex = resourceTotal ? (currentResourcePage - 1) * resourcePageSize : 0;
+  const resourceEndIndex = Math.min(resourceStartIndex + resourcePageSize, resourceTotal);
+  const paginatedResources = resources.slice(resourceStartIndex, resourceEndIndex);
+  const resourcePageNumbers = Array.from({ length: Math.min(resourcePageCount, 5) }, (_, index) => {
+    const start = Math.min(Math.max(currentResourcePage - 2, 1), Math.max(resourcePageCount - 4, 1));
+    return start + index;
+  });
 
   const statusOptions = useMemo(
     () => Array.from(new Set((data?.resources ?? []).map((row) => row.status).filter(Boolean))).sort(),
@@ -185,14 +221,35 @@ export default function TikTokChannelPage() {
     setResource(nextResource);
     setSearch("");
     setStatus("");
+    setResourcePage(1);
     void load(nextResource);
   }
 
-  function toggleField(key: string) {
-    setVisibleFields((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
-    );
+  function changeResourcePageSize(nextPageSize: number) {
+    setResourcePageSize(nextPageSize);
+    setResourcePage(1);
   }
+
+  function exportResources() {
+    const headers = ["类型", "名称", "外部 ID", "状态", "币种", "时区", "更新时间", "元数据"];
+    const rows = resources.map((row) =>
+      [
+        row.type,
+        row.name,
+        row.externalId,
+        statusLabel(row.status),
+        row.currency ?? "-",
+        row.timezone ?? "-",
+        formatDate(row.updatedAt),
+        row.metadata ?? "-"
+      ].map(csvCell)
+    );
+    downloadCsv(`tiktok-${resource}.csv`, [headers.map(csvCell), ...rows]);
+  }
+
+  useEffect(() => {
+    setResourcePage((current) => Math.min(current, resourcePageCount));
+  }, [resourcePageCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -210,11 +267,11 @@ export default function TikTokChannelPage() {
   return (
     <AdminShell
       title="TikTok 渠道"
-      description="管理 TikTok Accounts、Business Centers、Advertisers、Catalogs、Feeds、Products 和 Apps。"
+      description="管理 TikTok 授权、广告主、商务中心、Catalog、Feed、商品和 App。"
       actions={
         <div className="button-row">
           <button className="button primary" onClick={() => void connectTikTok()} type="button">
-            Connect TikTok
+            TikTok 授权
           </button>
           <button className="button secondary" disabled={syncing} onClick={() => void syncAssets()} type="button">
             {syncing ? "同步中..." : "同步资源"}
@@ -222,26 +279,29 @@ export default function TikTokChannelPage() {
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新
           </button>
+          <button className="button secondary" onClick={exportResources} type="button">
+            导出资源
+          </button>
         </div>
       }
     >
       <section className="metric-grid compact-metrics">
         <div className="metric metric-strong">
-          <span>Accounts</span>
+          <span>账号</span>
           <strong>{formatNumber(overview?.accounts)}</strong>
         </div>
         <div className="metric">
-          <span>Advertisers</span>
+          <span>广告主</span>
           <strong>{formatNumber(overview?.advertisers)}</strong>
         </div>
         <div className="metric">
-          <span>Catalog / Feed / Product</span>
+          <span>Catalog / Feed / 商品</span>
           <strong>
             {formatNumber(overview?.catalogs)} / {formatNumber(overview?.feeds)} / {formatNumber(overview?.products)}
           </strong>
         </div>
         <div className="metric">
-          <span>Apps / Tasks</span>
+          <span>App / 任务</span>
           <strong>
             {formatNumber(overview?.apps)} / {formatNumber(overview?.tasks)}
           </strong>
@@ -256,13 +316,13 @@ export default function TikTokChannelPage() {
         <div className="oauth-link-backdrop" role="presentation">
           <section aria-labelledby="tiktokOauthLinkTitle" className="oauth-link-modal" role="dialog">
             <div className="oauth-link-head">
-              <h2 id="tiktokOauthLinkTitle">Connect TikTok</h2>
+              <h2 id="tiktokOauthLinkTitle">TikTok 授权</h2>
               <button aria-label="关闭授权链接" onClick={() => setOauthUrl(null)} type="button">
                 ×
               </button>
             </div>
             <div className="field">
-              <label htmlFor="tiktokOauthAuthorizationLink">Authorization Link</label>
+              <label htmlFor="tiktokOauthAuthorizationLink">授权链接</label>
               <input
                 id="tiktokOauthAuthorizationLink"
                 onFocus={(event) => event.currentTarget.select()}
@@ -286,147 +346,180 @@ export default function TikTokChannelPage() {
         </div>
       ) : null}
 
-      <section className="resource-tabs">
-        {(data?.resourceTabs ?? []).map((tab) => (
-          <button
-            className={resource === tab.key ? "active" : ""}
-            key={tab.key}
-            onClick={() => changeResource(tab.key)}
-            type="button"
-          >
-            <span>{tab.label}</span>
-            <strong>{tab.count}</strong>
-          </button>
-        ))}
-      </section>
-
-      <section className="panel channel-filter-panel">
-        <div className="panel-heading">
-          <div>
-            <h2>筛选与字段</h2>
-            <p>切换资源模块后，可以按名称、ID、状态筛选，也可以控制表格展示字段。</p>
-          </div>
-        </div>
-        <div className="form-grid">
-          <div className="field">
-            <label htmlFor="resourceSearch">搜索</label>
-            <input id="resourceSearch" onChange={(event) => setSearch(event.target.value)} value={search} />
-          </div>
-          <div className="field">
-            <label htmlFor="resourceStatus">状态</label>
-            <select id="resourceStatus" onChange={(event) => setStatus(event.target.value)} value={status}>
-              <option value="">全部状态</option>
-              {statusOptions.map((item) => (
-                <option key={item} value={item}>
-                  {item}
+      <section className="channel-toolbar facebook-channel-toolbar" aria-label="TikTok 渠道筛选">
+        <div className="channel-filter-strip">
+          <label className="channel-resource-select compact-channel-select">
+            <span>资源</span>
+            <select onChange={(event) => changeResource(event.target.value)} value={resource}>
+              {(data?.resourceTabs ?? []).map((tab) => (
+                <option key={tab.key} value={tab.key}>
+                  {resourceLabels[tab.key] ?? tab.label}（{tab.count}）
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-        <div className="field-toggle-list">
-          {(data?.fieldOptions ?? []).map((field) => (
-            <label key={field.key}>
-              <input
-                checked={visibleFields.includes(field.key)}
-                onChange={() => toggleField(field.key)}
-                type="checkbox"
-              />
-              <span>{field.label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section className="split-grid">
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>资源状态</h2>
-              <p>当前模块共有 {resources.length} 条资源。</p>
-            </div>
-          </div>
-          <div className="quick-status-list">
-            {resources.slice(0, 6).map((row) => (
-              <div className="quick-status-item" key={`${row.type}:${row.id}`}>
-                <span className={statusClass(row.status)}>{row.status}</span>
-                <div>
-                  <strong>{row.name}</strong>
-                  <small>{row.type} / {row.externalId}</small>
-                </div>
-              </div>
-            ))}
-            {resources.length === 0 && !loading ? <div className="empty-state compact-empty">暂无资源</div> : null}
-          </div>
-        </div>
-        <div className="panel">
-          <div className="panel-heading">
-            <div>
-              <h2>任务</h2>
-              <p>发布任务和报表同步任务。</p>
-            </div>
-          </div>
-          <div className="quick-status-list">
-            {(data?.tasks ?? []).slice(0, 6).map((task) => (
-              <div className="quick-status-item" key={task.id}>
-                <span className={statusClass(task.status)}>{task.status}</span>
-                <div>
-                  <strong>{task.type}</strong>
-                  <small>{task.name} / {formatDate(task.updatedAt)}</small>
-                </div>
-              </div>
-            ))}
-            {data?.tasks.length === 0 && !loading ? <div className="empty-state compact-empty">暂无任务</div> : null}
-          </div>
+          </label>
+          <label className="channel-resource-select compact-channel-select">
+            <span>状态</span>
+            <select
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setResourcePage(1);
+              }}
+              value={status}
+            >
+              <option value="">全部状态</option>
+              {statusOptions.map((item) => (
+                <option key={item} value={item}>
+                  {statusLabel(item)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="channel-search-field">
+            <span>搜索</span>
+            <input
+              id="resourceSearch"
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setResourcePage(1);
+              }}
+              placeholder="名称 / ID / 类型"
+              value={search}
+            />
+          </label>
         </div>
       </section>
 
-      <section className="table-panel">
+      <section className="table-panel channel-table-panel">
         <div className="table-header">
           <div>
-            <strong>{data?.resourceTabs.find((tab) => tab.key === resource)?.label ?? "资源"}</strong>
+            <strong>{activeResourceLabel}</strong>
             <br />
-            <span className="muted">字段切换已应用到当前表格</span>
+            <span className="muted">当前资源：{activeResourceLabel} / 任务 {formatNumber(data?.tasks.length)}</span>
           </div>
         </div>
-        <table className="channel-resource-table">
-          <thead>
-            <tr>
-              {visibleFields.includes("type") ? <th>类型</th> : null}
-              {visibleFields.includes("name") ? <th>名称</th> : null}
-              {visibleFields.includes("externalId") ? <th>外部 ID</th> : null}
-              {visibleFields.includes("status") ? <th>状态</th> : null}
-              {visibleFields.includes("currency") ? <th>币种</th> : null}
-              {visibleFields.includes("timezone") ? <th>时区</th> : null}
-              {visibleFields.includes("updatedAt") ? <th>更新时间</th> : null}
-              {visibleFields.includes("metadata") ? <th>元数据</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {resources.map((row) => (
-              <tr key={`${row.type}:${row.id}`}>
-                {visibleFields.includes("type") ? <td>{row.type}</td> : null}
-                {visibleFields.includes("name") ? <td>{row.name}</td> : null}
-                {visibleFields.includes("externalId") ? <td>{row.externalId}</td> : null}
-                {visibleFields.includes("status") ? (
-                  <td>
-                    <span className={statusClass(row.status)}>{row.status}</span>
-                  </td>
-                ) : null}
-                {visibleFields.includes("currency") ? <td>{row.currency ?? "-"}</td> : null}
-                {visibleFields.includes("timezone") ? <td>{row.timezone ?? "-"}</td> : null}
-                {visibleFields.includes("updatedAt") ? <td>{formatDate(row.updatedAt)}</td> : null}
-                {visibleFields.includes("metadata") ? <td className="notes-cell">{row.metadata ?? "-"}</td> : null}
-              </tr>
-            ))}
-            {resources.length === 0 && !loading ? (
+        <div className="channel-table-scroll">
+          <table className="channel-resource-table tiktok-resource-table">
+            <thead>
               <tr>
-                <td colSpan={Math.max(visibleFields.length, 1)}>暂无 TikTok 资源</td>
+                <th>类型</th>
+                <th>名称</th>
+                <th>外部 ID</th>
+                <th>状态</th>
+                <th>币种</th>
+                <th>时区</th>
+                <th>更新时间</th>
+                <th>元数据</th>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedResources.map((row) => (
+                <tr key={`${row.type}:${row.id}`}>
+                  <td>{row.type}</td>
+                  <td>
+                    <div className="channel-name-cell">
+                      <strong title={row.name}>{row.name}</strong>
+                    </div>
+                  </td>
+                  <td>{row.externalId}</td>
+                  <td>
+                    <span className={statusClass(row.status)}>{statusLabel(row.status)}</span>
+                  </td>
+                  <td>{row.currency ?? "-"}</td>
+                  <td>{row.timezone ?? "-"}</td>
+                  <td>{formatDate(row.updatedAt)}</td>
+                  <td className="notes-cell" title={row.metadata ?? "-"}>
+                    {row.metadata ?? "-"}
+                  </td>
+                </tr>
+              ))}
+              {resources.length === 0 && !loading ? (
+                <tr>
+                  <td colSpan={8}>暂无 TikTok 资源</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+        <div className="table-pagination">
+          <span>
+            共 {formatNumber(resourceTotal)} 条，当前{" "}
+            {resourceTotal ? `${formatNumber(resourceStartIndex + 1)}-${formatNumber(resourceEndIndex)}` : "0"} 条
+          </span>
+          <div className="pagination-controls">
+            <label>
+              每页
+              <select
+                onChange={(event) => changeResourcePageSize(Number(event.target.value))}
+                value={resourcePageSize}
+              >
+                {resourcePageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              条
+            </label>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentResourcePage <= 1}
+              onClick={() => setResourcePage(1)}
+              type="button"
+            >
+              首页
+            </button>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentResourcePage <= 1}
+              onClick={() => setResourcePage((page) => Math.max(1, page - 1))}
+              type="button"
+            >
+              上一页
+            </button>
+            <div className="pagination-pages">
+              {resourcePageNumbers.map((page) => (
+                <button
+                  className={`pagination-page ${page === currentResourcePage ? "active" : ""}`}
+                  key={page}
+                  onClick={() => setResourcePage(page)}
+                  type="button"
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentResourcePage >= resourcePageCount}
+              onClick={() => setResourcePage((page) => Math.min(resourcePageCount, page + 1))}
+              type="button"
+            >
+              下一页
+            </button>
+            <button
+              className="button secondary pagination-button"
+              disabled={currentResourcePage >= resourcePageCount}
+              onClick={() => setResourcePage(resourcePageCount)}
+              type="button"
+            >
+              末页
+            </button>
+          </div>
+        </div>
       </section>
     </AdminShell>
   );
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const blob = new Blob([`\ufeff${rows.map((row) => row.join(",")).join("\n")}`], {
+    type: "text/csv;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

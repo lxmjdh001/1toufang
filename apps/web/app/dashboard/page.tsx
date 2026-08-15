@@ -306,7 +306,7 @@ export default function DashboardPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="metric-grid control-metrics">
+      <section className="metric-grid control-metrics dashboard-metrics">
         <div className="metric metric-strong">
           <span>钱包余额</span>
           <strong>{dashboard ? formatCurrency(dashboard.wallet.balance, dashboard.wallet.currency) : loading ? "..." : "-"}</strong>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="metric-grid">
+      <section className="metric-grid dashboard-metrics">
         <div className="metric">
           <span>总消耗</span>
           <strong>{overview ? formatCurrency(overview.totals.spend) : loading ? "..." : "-"}</strong>
@@ -489,7 +489,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="metric-grid compact-metrics">
+      <section className="metric-grid compact-metrics dashboard-metrics">
         <div className="metric">
           <span>用户</span>
           <strong>{inventory.users}</strong>

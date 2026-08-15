@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Platform } from "@1toufang/database/client";
-import { IsArray, IsEnum, IsObject, IsOptional, IsString } from "class-validator";
+import { IsArray, IsEnum, IsIn, IsObject, IsOptional, IsString } from "class-validator";
 
 export class CreateTargetingDto {
   @ApiProperty({ enum: Platform })
@@ -48,4 +48,40 @@ export class UpdateTargetingDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+}
+
+const targetingOptionKinds = [
+  "countries",
+  "regions",
+  "cities",
+  "languages",
+  "interests",
+  "demographics",
+  "behaviors"
+] as const;
+
+export class TargetingOptionsQueryDto {
+  @ApiProperty({ enum: Platform, required: false })
+  @IsOptional()
+  @IsEnum(Platform)
+  platform?: Platform;
+
+  @ApiProperty({ enum: targetingOptionKinds })
+  @IsIn(targetingOptionKinds)
+  kind: (typeof targetingOptionKinds)[number];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  q?: string;
+}
+
+export class EstimateTargetingDto {
+  @ApiProperty({ enum: Platform })
+  @IsEnum(Platform)
+  platform: Platform;
+
+  @ApiProperty({ type: Object })
+  @IsObject()
+  config: Record<string, unknown>;
 }

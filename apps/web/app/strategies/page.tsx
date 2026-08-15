@@ -9,9 +9,14 @@ type Platform = "META" | "TIKTOK";
 type StrategyConfig = {
   objective?: string;
   budgetType?: string;
+  budgetAmount?: number;
+  budgetScope?: string;
   dailyBudget?: number;
   bidStrategy?: string;
   bidAmount?: number;
+  callToAction?: string;
+  conversionTarget?: string;
+  campaignType?: string;
   optimizationGoal?: string;
   billingEvent?: string;
   placementMode?: string;
@@ -38,9 +43,12 @@ type StrategyDraft = {
   name: string;
   objective: string;
   budgetType: string;
-  dailyBudget: string;
+  budgetAmount: string;
   bidStrategy: string;
   bidAmount: string;
+  callToAction: string;
+  conversionTarget: string;
+  campaignType: string;
   optimizationGoal: string;
   billingEvent: string;
   placementMode: string;
@@ -52,16 +60,81 @@ const emptyDraft: StrategyDraft = {
   platform: "META",
   name: "",
   objective: "SALES",
-  budgetType: "DAILY",
-  dailyBudget: "50",
-  bidStrategy: "LOWEST_COST",
+  budgetType: "CAMPAIGN_DAILY",
+  budgetAmount: "50",
+  bidStrategy: "HIGHEST_VOLUME",
   bidAmount: "",
-  optimizationGoal: "PURCHASE",
+  callToAction: "LEARN_MORE",
+  conversionTarget: "WEBSITE",
+  campaignType: "STANDARD",
+  optimizationGoal: "CONVERSATIONS",
   billingEvent: "IMPRESSIONS",
   placementMode: "AUTO",
   namingRule: "{platform}-{objective}-{date}",
   notes: ""
 };
+
+const budgetTypeOptions = [
+  { value: "CAMPAIGN_LIFETIME", label: "广告系列总预算", amountLabel: "总预算" },
+  { value: "CAMPAIGN_DAILY", label: "广告系列日预算", amountLabel: "每日预算" },
+  { value: "ADSET_DAILY", label: "广告组预算", amountLabel: "每日预算" }
+];
+
+const bidStrategyOptions = [
+  { value: "HIGHEST_VOLUME", label: "最大数量" },
+  { value: "COST_PER_RESULT_GOAL", label: "单次成效费用目标" },
+  { value: "BID_CAP", label: "竞价最高上限" }
+];
+
+const objectiveOptions = [
+  { value: "AWARENESS", label: "知名度" },
+  { value: "TRAFFIC", label: "流量" },
+  { value: "ENGAGEMENT", label: "互动" },
+  { value: "LEADS", label: "潜在客户" },
+  { value: "APP_PROMOTION", label: "应用推广" },
+  { value: "SALES", label: "销量" }
+];
+
+const callToActionOptions = [
+  { value: "LEARN_MORE", label: "了解更多" },
+  { value: "SHOP_NOW", label: "立即购买" },
+  { value: "ORDER_NOW", label: "立即订购" },
+  { value: "SIGN_UP", label: "注册" },
+  { value: "DOWNLOAD", label: "下载" },
+  { value: "CONTACT_US", label: "联系我们" },
+  { value: "MESSAGE", label: "Message" },
+  { value: "WHATSAPP_MESSAGE", label: "发送 WhatsApp 消息" },
+  { value: "INSTALL_MOBILE_APP", label: "安装移动应用" },
+  { value: "PLAY_GAME", label: "玩游戏" }
+];
+
+const leadConversionTargets = [
+  { value: "FORM", label: "表单" },
+  { value: "WEBSITE", label: "网站" }
+];
+
+const optimizationByObjective: Record<string, Array<{ value: string; label: string }>> = {
+  APP_PROMOTION: [
+    { value: "TRAFFIC", label: "流量" },
+    { value: "INSTALL", label: "安装" },
+    { value: "CONVERSION", label: "转化" },
+    { value: "VALUE", label: "价值" }
+  ],
+  SALES: [
+    { value: "TRAFFIC", label: "流量" },
+    { value: "CONVERSATIONS", label: "对话" },
+    { value: "VALUE", label: "价值" }
+  ],
+  LEADS: [
+    { value: "LEAD", label: "潜在客户" },
+    { value: "QUALITY_LEAD", label: "优质潜在客户" }
+  ]
+};
+
+const campaignTypeOptions = [
+  { value: "STANDARD", label: "标准" },
+  { value: "ADVANTAGE_PLUS", label: "Advantage+" }
+];
 
 function toNumber(value: string) {
   const normalized = value.trim();
@@ -74,15 +147,30 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("zh-CN");
 }
 
+function normalizeBudgetType(value?: string) {
+  if (value === "LIFETIME") return "CAMPAIGN_LIFETIME";
+  if (value === "DAILY") return "CAMPAIGN_DAILY";
+  return value ?? "CAMPAIGN_DAILY";
+}
+
+function normalizeBidStrategy(value?: string) {
+  if (value === "LOWEST_COST") return "HIGHEST_VOLUME";
+  if (value === "COST_CAP") return "COST_PER_RESULT_GOAL";
+  return value ?? "HIGHEST_VOLUME";
+}
+
 function draftFromRow(row: StrategyRow): StrategyDraft {
   return {
     platform: row.platform,
     name: row.name,
     objective: row.config.objective ?? "SALES",
-    budgetType: row.config.budgetType ?? "DAILY",
-    dailyBudget: row.config.dailyBudget?.toString() ?? "",
-    bidStrategy: row.config.bidStrategy ?? "LOWEST_COST",
+    budgetType: normalizeBudgetType(row.config.budgetType),
+    budgetAmount: (row.config.budgetAmount ?? row.config.dailyBudget)?.toString() ?? "",
+    bidStrategy: normalizeBidStrategy(row.config.bidStrategy),
     bidAmount: row.config.bidAmount?.toString() ?? "",
+    callToAction: row.config.callToAction ?? "LEARN_MORE",
+    conversionTarget: row.config.conversionTarget ?? "WEBSITE",
+    campaignType: row.config.campaignType ?? "STANDARD",
     optimizationGoal: row.config.optimizationGoal ?? "PURCHASE",
     billingEvent: row.config.billingEvent ?? "IMPRESSIONS",
     placementMode: row.config.placementMode ?? "AUTO",
@@ -92,6 +180,9 @@ function draftFromRow(row: StrategyRow): StrategyDraft {
 }
 
 function buildPayload(draft: StrategyDraft) {
+  const budgetAmount = toNumber(draft.budgetAmount);
+  const bidAmount = draft.bidStrategy === "BID_CAP" ? toNumber(draft.bidAmount) : undefined;
+  const hasObjectiveChildren = draft.callToAction === "DOWNLOAD";
   return {
     platform: draft.platform,
     name: draft.name,
@@ -99,10 +190,15 @@ function buildPayload(draft: StrategyDraft) {
     config: {
       objective: draft.objective,
       budgetType: draft.budgetType,
-      dailyBudget: toNumber(draft.dailyBudget),
+      budgetScope: draft.budgetType === "ADSET_DAILY" ? "AD_SET" : "CAMPAIGN",
+      budgetAmount,
+      dailyBudget: budgetAmount,
       bidStrategy: draft.bidStrategy,
-      bidAmount: toNumber(draft.bidAmount),
-      optimizationGoal: draft.optimizationGoal,
+      bidAmount,
+      callToAction: draft.callToAction,
+      conversionTarget: hasObjectiveChildren && draft.objective === "LEADS" ? draft.conversionTarget : undefined,
+      campaignType: hasObjectiveChildren && ["APP_PROMOTION", "SALES"].includes(draft.objective) ? draft.campaignType : undefined,
+      optimizationGoal: hasObjectiveChildren ? draft.optimizationGoal : undefined,
       billingEvent: draft.billingEvent,
       placementMode: draft.placementMode,
       namingRule: draft.namingRule
@@ -135,6 +231,20 @@ export default function StrategiesPage() {
   const tiktokCount = rows.length - metaCount;
   const usedCount = useMemo(() => rows.filter((row) => Number(row.usageCount ?? 0) > 0).length, [rows]);
   const selectedStrategy = useMemo(() => rows.find((row) => row.id === selectedId) ?? rows[0] ?? null, [rows, selectedId]);
+  const activeBudgetType = useMemo(
+    () => budgetTypeOptions.find((option) => option.value === draft.budgetType) ?? budgetTypeOptions[1],
+    [draft.budgetType]
+  );
+  const activeObjectiveLabel = objectiveOptions.find((option) => option.value === draft.objective)?.label ?? "广告系列目标";
+  const activeOptimizationOptions = optimizationByObjective[draft.objective] ?? [];
+  const canShowObjectiveChildren = draft.callToAction === "DOWNLOAD";
+  const showConversionTarget = canShowObjectiveChildren && draft.objective === "LEADS";
+  const showOptimizationGoal = canShowObjectiveChildren && activeOptimizationOptions.length > 0;
+  const showCampaignType =
+    canShowObjectiveChildren &&
+    ((draft.objective === "APP_PROMOTION" && draft.optimizationGoal === "INSTALL") ||
+      (draft.objective === "SALES" && draft.optimizationGoal === "CONVERSATIONS"));
+  const showBidAmount = draft.bidStrategy === "BID_CAP";
   const visibleRows = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     return rows.filter((row) => {
@@ -165,6 +275,8 @@ export default function StrategiesPage() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submitter = event.nativeEvent instanceof SubmitEvent ? event.nativeEvent.submitter : null;
+    const action = submitter instanceof HTMLButtonElement ? submitter.value : "save";
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -175,7 +287,11 @@ export default function StrategiesPage() {
       });
       setNotice(editingId ? "策略已更新并生成新版本" : "策略已创建");
       setSelectedId(row.id);
-      resetForm();
+      if (action === "create_another" && !editingId) {
+        setDraft({ ...emptyDraft, platform: draft.platform });
+      } else {
+        resetForm();
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "保存策略模板失败");
@@ -226,7 +342,41 @@ export default function StrategiesPage() {
   }
 
   function updateDraft<K extends keyof StrategyDraft>(key: K, value: StrategyDraft[K]) {
-    setDraft((current) => ({ ...current, [key]: value }));
+    setDraft((current) => {
+      const next = { ...current, [key]: value };
+
+      if (key === "objective") {
+        const options = optimizationByObjective[String(value)] ?? [];
+        next.optimizationGoal = options[0]?.value ?? "";
+        next.conversionTarget = String(value) === "LEADS" ? next.conversionTarget || "WEBSITE" : "";
+        next.campaignType = ["APP_PROMOTION", "SALES"].includes(String(value)) ? next.campaignType || "STANDARD" : "";
+      }
+
+      if (key === "bidStrategy" && value !== "BID_CAP") {
+        next.bidAmount = "";
+      }
+
+      if (key === "callToAction" && value !== "DOWNLOAD") {
+        next.conversionTarget = "";
+        next.optimizationGoal = "";
+        next.campaignType = "";
+      }
+
+      if (key === "callToAction" && value === "DOWNLOAD") {
+        const options = optimizationByObjective[next.objective] ?? [];
+        next.optimizationGoal = options[0]?.value ?? next.optimizationGoal;
+        next.conversionTarget = next.objective === "LEADS" ? next.conversionTarget || "WEBSITE" : next.conversionTarget;
+      }
+
+      if (key === "optimizationGoal") {
+        const needsCampaignType =
+          (next.objective === "APP_PROMOTION" && value === "INSTALL") ||
+          (next.objective === "SALES" && value === "CONVERSATIONS");
+        next.campaignType = needsCampaignType ? next.campaignType || "STANDARD" : "";
+      }
+
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -279,7 +429,10 @@ export default function StrategiesPage() {
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
-          <div className="form-grid">
+          <div className="form-section-heading">
+            <h3>基础信息</h3>
+          </div>
+          <div className="form-grid strategy-rule-grid">
             <div className="field">
               <label htmlFor="strategyPlatform">Channel</label>
               <select
@@ -292,7 +445,7 @@ export default function StrategiesPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="strategyName">名称</label>
+              <label htmlFor="strategyName">策略名称</label>
               <input
                 id="strategyName"
                 onChange={(event) => updateDraft("name", event.target.value)}
@@ -300,65 +453,133 @@ export default function StrategiesPage() {
                 value={draft.name}
               />
             </div>
-            <div className="field">
-              <label htmlFor="objective">投放目标</label>
-              <select id="objective" onChange={(event) => updateDraft("objective", event.target.value)} value={draft.objective}>
-                <option value="SALES">销售转化</option>
-                <option value="LEADS">线索收集</option>
-                <option value="TRAFFIC">访问流量</option>
-                <option value="APP_PROMOTION">应用推广</option>
-              </select>
-            </div>
+          </div>
+
+          <div className="form-section-heading">
+            <h3>预算类型</h3>
+          </div>
+          <div className="form-grid strategy-rule-grid">
             <div className="field">
               <label htmlFor="budgetType">预算类型</label>
               <select id="budgetType" onChange={(event) => updateDraft("budgetType", event.target.value)} value={draft.budgetType}>
-                <option value="DAILY">日预算</option>
-                <option value="LIFETIME">总预算</option>
+                {budgetTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="dailyBudget">默认预算</label>
-              <input
-                id="dailyBudget"
-                min="0"
-                onChange={(event) => updateDraft("dailyBudget", event.target.value)}
-                step="0.01"
-                type="number"
-                value={draft.dailyBudget}
-              />
+              <label htmlFor="budgetAmount">{activeBudgetType.amountLabel}</label>
+              <div className="currency-input">
+                <span>$</span>
+                <input
+                  id="budgetAmount"
+                  min="0"
+                  onChange={(event) => updateDraft("budgetAmount", event.target.value)}
+                  step="0.01"
+                  type="number"
+                  value={draft.budgetAmount}
+                />
+              </div>
             </div>
             <div className="field">
-              <label htmlFor="bidStrategy">出价策略</label>
+              <label htmlFor="bidStrategy">广告竞价策略</label>
               <select id="bidStrategy" onChange={(event) => updateDraft("bidStrategy", event.target.value)} value={draft.bidStrategy}>
-                <option value="LOWEST_COST">最低成本</option>
-                <option value="COST_CAP">成本上限</option>
-                <option value="BID_CAP">出价上限</option>
+                {bidStrategyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {showBidAmount ? (
+              <div className="field">
+                <label htmlFor="bidAmount">竞价金额</label>
+                <div className="currency-input">
+                  <span>$</span>
+                  <input
+                    id="bidAmount"
+                    min="0"
+                    onChange={(event) => updateDraft("bidAmount", event.target.value)}
+                    step="0.01"
+                    type="number"
+                    value={draft.bidAmount}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="form-section-heading">
+            <h3>广告系列目标</h3>
+            <span>{activeObjectiveLabel}</span>
+          </div>
+          <div className="form-grid strategy-rule-grid">
+            <div className="field">
+              <label htmlFor="objective">广告系列目标</label>
+              <select id="objective" onChange={(event) => updateDraft("objective", event.target.value)} value={draft.objective}>
+                {objectiveOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="bidAmount">出价/成本上限</label>
-              <input
-                id="bidAmount"
-                min="0"
-                onChange={(event) => updateDraft("bidAmount", event.target.value)}
-                step="0.01"
-                type="number"
-                value={draft.bidAmount}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="optimizationGoal">优化目标</label>
-              <select
-                id="optimizationGoal"
-                onChange={(event) => updateDraft("optimizationGoal", event.target.value)}
-                value={draft.optimizationGoal}
-              >
-                <option value="PURCHASE">购买</option>
-                <option value="LEAD">线索</option>
-                <option value="CLICK">点击</option>
-                <option value="INSTALL">安装</option>
+              <label htmlFor="callToAction">行动号召</label>
+              <select id="callToAction" onChange={(event) => updateDraft("callToAction", event.target.value)} value={draft.callToAction}>
+                {callToActionOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
+            {showConversionTarget ? (
+              <div className="field">
+                <label htmlFor="conversionTarget">转化目标</label>
+                <select
+                  id="conversionTarget"
+                  onChange={(event) => updateDraft("conversionTarget", event.target.value)}
+                  value={draft.conversionTarget}
+                >
+                  {leadConversionTargets.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            {showOptimizationGoal ? (
+              <div className="field">
+                <label htmlFor="optimizationGoal">优化目标</label>
+                <select
+                  id="optimizationGoal"
+                  onChange={(event) => updateDraft("optimizationGoal", event.target.value)}
+                  value={draft.optimizationGoal}
+                >
+                  {activeOptimizationOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            {showCampaignType ? (
+              <div className="field">
+                <label htmlFor="campaignType">系列类型</label>
+                <select id="campaignType" onChange={(event) => updateDraft("campaignType", event.target.value)} value={draft.campaignType}>
+                  {campaignTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="field">
               <label htmlFor="billingEvent">计费事件</label>
               <select id="billingEvent" onChange={(event) => updateDraft("billingEvent", event.target.value)} value={draft.billingEvent}>
@@ -374,6 +595,12 @@ export default function StrategiesPage() {
                 <option value="MANUAL">手动版位</option>
               </select>
             </div>
+          </div>
+
+          <div className="form-section-heading">
+            <h3>命名与备注</h3>
+          </div>
+          <div className="form-grid strategy-rule-grid">
             <div className="field">
               <label htmlFor="namingRule">命名规则</label>
               <input
@@ -391,6 +618,11 @@ export default function StrategiesPage() {
             <button className="button primary" disabled={saving} type="submit">
               {saving ? "保存中..." : editingId ? "保存新版本" : "保存模板"}
             </button>
+            {!editingId ? (
+              <button className="button secondary" disabled={saving} type="submit" value="create_another">
+                创建并创建另一个
+              </button>
+            ) : null}
             {editingId ? (
               <button className="button secondary" onClick={resetForm} type="button">
                 取消编辑
@@ -512,9 +744,12 @@ export default function StrategiesPage() {
                 </div>
                 <div className="strategy-config-grid">
                   <span>Objective：{selectedStrategy.config.objective ?? "-"}</span>
-                  <span>Budget：{selectedStrategy.config.budgetType ?? "-"} / {selectedStrategy.config.dailyBudget ?? "-"}</span>
+                  <span>Budget：{selectedStrategy.config.budgetType ?? "-"} / {selectedStrategy.config.budgetAmount ?? selectedStrategy.config.dailyBudget ?? "-"}</span>
                   <span>Bid：{selectedStrategy.config.bidStrategy ?? "-"} / {selectedStrategy.config.bidAmount ?? "-"}</span>
+                  <span>CTA：{selectedStrategy.config.callToAction ?? "-"}</span>
+                  <span>Conversion：{selectedStrategy.config.conversionTarget ?? "-"}</span>
                   <span>Optimization：{selectedStrategy.config.optimizationGoal ?? "-"}</span>
+                  <span>Series：{selectedStrategy.config.campaignType ?? "-"}</span>
                   <span>Billing：{selectedStrategy.config.billingEvent ?? "-"}</span>
                   <span>Placement：{selectedStrategy.config.placementMode ?? "-"}</span>
                 </div>
