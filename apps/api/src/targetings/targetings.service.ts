@@ -549,8 +549,7 @@ export class TargetingsService {
     const actId = adAccountExternalId.startsWith("act_") ? adAccountExternalId : `act_${adAccountExternalId}`;
     const params = new URLSearchParams({
       access_token: accessToken,
-      targeting_spec: JSON.stringify(metaTargetingSpec(config)),
-      optimize_for: "IMPRESSIONS"
+      targeting_spec: JSON.stringify(metaTargetingSpec(config))
     });
 
     const response = await fetch(`${this.graphUrl(`${actId}/reachestimate`)}?${params.toString()}`);
