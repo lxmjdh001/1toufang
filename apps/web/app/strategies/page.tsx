@@ -102,7 +102,7 @@ const callToActionOptions = [
   { value: "SIGN_UP", label: "注册" },
   { value: "DOWNLOAD", label: "下载" },
   { value: "CONTACT_US", label: "联系我们" },
-  { value: "MESSAGE", label: "Message" },
+  { value: "MESSAGE", label: "发送消息" },
   { value: "WHATSAPP_MESSAGE", label: "发送 WhatsApp 消息" },
   { value: "INSTALL_MOBILE_APP", label: "安装移动应用" },
   { value: "PLAY_GAME", label: "玩游戏" }
@@ -135,6 +135,29 @@ const campaignTypeOptions = [
   { value: "STANDARD", label: "标准" },
   { value: "ADVANTAGE_PLUS", label: "Advantage+" }
 ];
+
+const billingEventOptions = [
+  { value: "IMPRESSIONS", label: "展示" },
+  { value: "CLICKS", label: "点击" },
+  { value: "CONVERSIONS", label: "转化" }
+];
+
+const placementModeOptions = [
+  { value: "AUTO", label: "自动版位" },
+  { value: "MANUAL", label: "手动版位" }
+];
+
+function optionLabel(options: Array<{ value: string; label: string }>, value?: string) {
+  return options.find((option) => option.value === value)?.label ?? value ?? "-";
+}
+
+function platformLabel(platform: Platform) {
+  return platform === "META" ? "Meta" : "TikTok";
+}
+
+function optimizationLabel(objective?: string, value?: string) {
+  return optionLabel(optimizationByObjective[objective ?? ""] ?? [], value);
+}
 
 function toNumber(value: string) {
   const normalized = value.trim();
@@ -390,7 +413,7 @@ export default function StrategiesPage() {
       actions={
         <div className="button-row">
           <button className="button primary" onClick={resetForm} type="button">
-            创建 Strategy
+            创建策略
           </button>
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新
@@ -412,7 +435,7 @@ export default function StrategiesPage() {
           <strong>{tiktokCount}</strong>
         </div>
         <div className="metric">
-          <span>已用于 Campaign</span>
+          <span>已用于投放计划</span>
           <strong>{usedCount}</strong>
         </div>
       </section>
@@ -424,8 +447,8 @@ export default function StrategiesPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>{editingId ? "编辑 Strategy" : "创建 Strategy"}</h2>
-            <p>策略保存后可以在 Campaign 创建页直接引用。</p>
+            <h2>{editingId ? "编辑策略" : "创建策略"}</h2>
+            <p>策略保存后可以在投放计划创建页直接引用。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -434,7 +457,7 @@ export default function StrategiesPage() {
           </div>
           <div className="form-grid strategy-rule-grid">
             <div className="field">
-              <label htmlFor="strategyPlatform">Channel</label>
+              <label htmlFor="strategyPlatform">投放平台</label>
               <select
                 id="strategyPlatform"
                 onChange={(event) => updateDraft("platform", event.target.value as Platform)}
@@ -583,16 +606,17 @@ export default function StrategiesPage() {
             <div className="field">
               <label htmlFor="billingEvent">计费事件</label>
               <select id="billingEvent" onChange={(event) => updateDraft("billingEvent", event.target.value)} value={draft.billingEvent}>
-                <option value="IMPRESSIONS">展示</option>
-                <option value="CLICKS">点击</option>
-                <option value="CONVERSIONS">转化</option>
+                {billingEventOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
             <div className="field">
               <label htmlFor="placementMode">版位</label>
               <select id="placementMode" onChange={(event) => updateDraft("placementMode", event.target.value)} value={draft.placementMode}>
-                <option value="AUTO">自动版位</option>
-                <option value="MANUAL">手动版位</option>
+                {placementModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -641,9 +665,9 @@ export default function StrategiesPage() {
                 <input id="strategySearch" onChange={(event) => setSearchTerm(event.target.value)} value={searchTerm} />
               </div>
               <div className="field">
-                <label htmlFor="strategyPlatformFilter">Channel</label>
+                <label htmlFor="strategyPlatformFilter">投放平台</label>
                 <select id="strategyPlatformFilter" onChange={(event) => setPlatformFilter(event.target.value)} value={platformFilter}>
-                  <option value="">全部 Channel</option>
+                  <option value="">全部平台</option>
                   <option value="META">Meta</option>
                   <option value="TIKTOK">TikTok</option>
                 </select>
@@ -656,7 +680,7 @@ export default function StrategiesPage() {
               <thead>
                 <tr>
                   <th>创建者</th>
-                  <th>Channel</th>
+                  <th>投放平台</th>
                   <th>名称</th>
                   <th>版本</th>
                   <th>使用数</th>
@@ -669,7 +693,7 @@ export default function StrategiesPage() {
                 {visibleRows.map((row) => (
                   <tr className={selectedStrategy?.id === row.id ? "selected-row" : ""} key={row.id} onClick={() => setSelectedId(row.id)}>
                     <td>{creatorName(row)}</td>
-                    <td>{row.platform}</td>
+                    <td>{platformLabel(row.platform)}</td>
                     <td>
                       <strong>{row.name}</strong>
                       <br />
@@ -691,7 +715,7 @@ export default function StrategiesPage() {
                           复制
                         </button>
                         <a className="button primary" href={`/campaigns?strategyId=${row.id}`}>
-                          创建 Campaign
+                          创建投放计划
                         </a>
                         <button className="button danger" onClick={() => void remove(row)} type="button">
                           删除
@@ -714,8 +738,8 @@ export default function StrategiesPage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <h2>Strategy 详情</h2>
-                <p>查看策略版本、配置和 Campaign 使用入口。</p>
+                <h2>策略详情</h2>
+                <p>查看策略版本、配置和投放计划使用入口。</p>
               </div>
             </div>
             {selectedStrategy ? (
@@ -730,28 +754,28 @@ export default function StrategiesPage() {
                     <strong>{creatorName(selectedStrategy)}</strong>
                   </div>
                   <div>
-                    <span>Channel</span>
-                    <strong>{selectedStrategy.platform}</strong>
+                    <span>投放平台</span>
+                    <strong>{platformLabel(selectedStrategy.platform)}</strong>
                   </div>
                   <div>
                     <span>版本</span>
                     <strong>v{versionOf(selectedStrategy)}</strong>
                   </div>
                   <div>
-                    <span>已用于 Campaign</span>
+                    <span>已用于投放计划</span>
                     <strong>{selectedStrategy.usageCount ?? 0}</strong>
                   </div>
                 </div>
                 <div className="strategy-config-grid">
-                  <span>Objective：{selectedStrategy.config.objective ?? "-"}</span>
-                  <span>Budget：{selectedStrategy.config.budgetType ?? "-"} / {selectedStrategy.config.budgetAmount ?? selectedStrategy.config.dailyBudget ?? "-"}</span>
-                  <span>Bid：{selectedStrategy.config.bidStrategy ?? "-"} / {selectedStrategy.config.bidAmount ?? "-"}</span>
-                  <span>CTA：{selectedStrategy.config.callToAction ?? "-"}</span>
-                  <span>Conversion：{selectedStrategy.config.conversionTarget ?? "-"}</span>
-                  <span>Optimization：{selectedStrategy.config.optimizationGoal ?? "-"}</span>
-                  <span>Series：{selectedStrategy.config.campaignType ?? "-"}</span>
-                  <span>Billing：{selectedStrategy.config.billingEvent ?? "-"}</span>
-                  <span>Placement：{selectedStrategy.config.placementMode ?? "-"}</span>
+                  <span>投放目标：{optionLabel(objectiveOptions, selectedStrategy.config.objective)}</span>
+                  <span>预算：{optionLabel(budgetTypeOptions, normalizeBudgetType(selectedStrategy.config.budgetType))} / {selectedStrategy.config.budgetAmount ?? selectedStrategy.config.dailyBudget ?? "-"}</span>
+                  <span>竞价：{optionLabel(bidStrategyOptions, normalizeBidStrategy(selectedStrategy.config.bidStrategy))} / {selectedStrategy.config.bidAmount ?? "-"}</span>
+                  <span>行动号召：{optionLabel(callToActionOptions, selectedStrategy.config.callToAction)}</span>
+                  <span>转化位置：{optionLabel(leadConversionTargets, selectedStrategy.config.conversionTarget)}</span>
+                  <span>优化目标：{optimizationLabel(selectedStrategy.config.objective, selectedStrategy.config.optimizationGoal)}</span>
+                  <span>系列类型：{optionLabel(campaignTypeOptions, selectedStrategy.config.campaignType)}</span>
+                  <span>计费事件：{optionLabel(billingEventOptions, selectedStrategy.config.billingEvent)}</span>
+                  <span>版位：{optionLabel(placementModeOptions, selectedStrategy.config.placementMode)}</span>
                 </div>
                 <div className="notice success">
                   <strong>命名规则</strong>
@@ -766,12 +790,12 @@ export default function StrategiesPage() {
                     复制
                   </button>
                   <a className="button primary" href={`/campaigns?strategyId=${selectedStrategy.id}`}>
-                    用此策略创建 Campaign
+                    用此策略创建投放计划
                   </a>
                 </div>
               </div>
             ) : (
-              <div className="empty-state compact-empty">请选择 Strategy</div>
+              <div className="empty-state compact-empty">请选择策略</div>
             )}
           </section>
         </aside>

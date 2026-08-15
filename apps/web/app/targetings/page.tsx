@@ -174,7 +174,7 @@ const tiktokAgeMaxOptions = ["24", "34", "44", "54", "65+"];
 
 const demographicOptions = [
   { value: "education", label: "学历" },
-  { value: "financial", label: "Financial" },
+  { value: "financial", label: "财务" },
   { value: "life_events", label: "生活纪事" },
   { value: "parents", label: "父母" }
 ];
@@ -351,8 +351,16 @@ const languageOptions = [
 const viewTabs: Array<{ key: ViewKey; label: string }> = [
   { key: "default", label: "默认" },
   { key: "standard", label: "标准" },
-  { key: "ai_generated", label: "AI Generated" }
+  { key: "ai_generated", label: "自动生成" }
 ];
+
+function platformLabel(platform: Platform) {
+  return platform === "META" ? "Meta" : "TikTok";
+}
+
+function viewLabel(view: ViewKey) {
+  return viewTabs.find((tab) => tab.key === view)?.label ?? view;
+}
 
 function splitList(value: string) {
   return value
@@ -867,7 +875,7 @@ export default function TargetingsPage() {
       actions={
         <div className="button-row">
           <button className="button primary" onClick={resetForm} type="button">
-            创建 Targeting
+            创建受众
           </button>
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新
@@ -901,8 +909,8 @@ export default function TargetingsPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>{editingId ? "编辑受众" : "创建 Targeting"}</h2>
-            <p>受众模板会作为后续一键创建 Ad Group/Ad Set 的默认定向规则。</p>
+            <h2>{editingId ? "编辑受众" : "创建受众"}</h2>
+            <p>受众模板会作为后续批量创建广告组的默认定向规则。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -941,16 +949,16 @@ export default function TargetingsPage() {
               <select id="targetingType" onChange={(event) => updateDraft("type", event.target.value)} value={draft.type}>
                 <option value="default">默认</option>
                 <option value="standard">标准</option>
-                <option value="lookalike">Lookalike</option>
-                <option value="retargeting">Retargeting</option>
+                <option value="lookalike">相似受众</option>
+                <option value="retargeting">再营销</option>
               </select>
             </div>
             <div className="field">
               <label htmlFor="targetingSource">来源</label>
               <select id="targetingSource" onChange={(event) => updateDraft("source", event.target.value)} value={draft.source}>
-                <option value="manual">Manual</option>
-                <option value="ai-generated">AI Generated</option>
-                <option value="imported">Imported</option>
+                <option value="manual">手动创建</option>
+                <option value="ai-generated">自动生成</option>
+                <option value="imported">导入</option>
               </select>
             </div>
             <SearchableCheckList
@@ -1325,9 +1333,9 @@ export default function TargetingsPage() {
                       <td>
                         <strong>{row.name}</strong>
                         <br />
-                        <span className="muted">{row.platform}</span>
+                        <span className="muted">{platformLabel(row.platform)}</span>
                       </td>
-                      <td>{row.config.type ?? viewOf(row)}</td>
+                      <td>{viewLabel(viewOf(row))}</td>
                       <td>{joinList(row.config.countries) || "-"}</td>
                       <td>{joinList(row.config.regions) || "-"}</td>
                       <td>{joinList(row.config.cities) || "-"}</td>
@@ -1396,7 +1404,7 @@ export default function TargetingsPage() {
                   </div>
                   <div>
                     <span>平台 / 视图</span>
-                    <strong>{selectedTargeting.platform} / {viewOf(selectedTargeting)}</strong>
+                    <strong>{platformLabel(selectedTargeting.platform)} / {viewLabel(viewOf(selectedTargeting))}</strong>
                   </div>
                   <div>
                     <span>地域</span>
@@ -1422,7 +1430,7 @@ export default function TargetingsPage() {
                   <span>Messenger：{joinList(selectedTargeting.config.messengerPlacements) || "-"}</span>
                   <span>WhatsApp：{joinList(selectedTargeting.config.whatsappPlacements) || "-"}</span>
                   <span>Threads：{joinList(selectedTargeting.config.threadsPlacements) || "-"}</span>
-                  <span>Campaign：{selectedTargeting.metrics?.campaigns ?? 0}</span>
+                  <span>投放计划：{selectedTargeting.metrics?.campaigns ?? 0}</span>
                 </div>
                 <div className="button-row">
                   <button className="button secondary" onClick={() => edit(selectedTargeting)} type="button">

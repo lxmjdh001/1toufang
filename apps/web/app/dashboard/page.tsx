@@ -7,8 +7,6 @@ import { apiRequest } from "../../lib/api";
 type Platform = "META" | "TIKTOK";
 
 type InventoryState = {
-  users: number | string;
-  pending: number | string;
   integrations: number | string;
   adAccounts: number | string;
   campaigns: number | string;
@@ -123,8 +121,6 @@ type DashboardSnapshot = {
 };
 
 const emptyInventory: InventoryState = {
-  users: "-",
-  pending: "-",
   integrations: "-",
   adAccounts: "-",
   campaigns: "-",
@@ -190,12 +186,10 @@ export default function DashboardPage() {
     setError(null);
     const params = new URLSearchParams({ startDate, endDate });
 
-    const [report, dashboardPanel, users, pending, integrations, adAccounts, campaigns, mediaAssets, copywritings, creatives] =
+    const [report, dashboardPanel, integrations, adAccounts, campaigns, mediaAssets, copywritings, creatives] =
       await Promise.allSettled([
         apiRequest<ReportOverview>(`/reports/overview?${params.toString()}`),
         apiRequest<DashboardSnapshot>(`/reports/dashboard?${params.toString()}`),
-        apiRequest<unknown[]>("/admin/users"),
-        apiRequest<unknown[]>("/admin/users/pending"),
         apiRequest<unknown[]>("/integrations"),
         apiRequest<unknown[]>("/ad-accounts"),
         apiRequest<unknown[]>("/campaigns"),
@@ -218,8 +212,6 @@ export default function DashboardPage() {
     }
 
     setInventory({
-      users: users.status === "fulfilled" ? users.value.length : "-",
-      pending: pending.status === "fulfilled" ? pending.value.length : "-",
       integrations: integrations.status === "fulfilled" ? integrations.value.length : "-",
       adAccounts: adAccounts.status === "fulfilled" ? adAccounts.value.length : "-",
       campaigns: campaigns.status === "fulfilled" ? campaigns.value.length : "-",
@@ -228,24 +220,6 @@ export default function DashboardPage() {
       creatives: creatives.status === "fulfilled" ? creatives.value.length : "-"
     });
     setLoading(false);
-  }
-
-  async function syncDryRun() {
-    setSyncing(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const run = await apiRequest<SyncRun>("/reports/sync/dry-run", {
-        method: "POST",
-        body: JSON.stringify({ startDate, endDate })
-      });
-      setNotice(run.message ?? "报表同步完成");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "报表同步失败");
-    } finally {
-      setSyncing(false);
-    }
   }
 
   async function syncOfficial() {
@@ -297,9 +271,6 @@ export default function DashboardPage() {
           <button className="button primary" disabled={syncing} onClick={syncOfficial} type="button">
             {syncing ? "同步中..." : "同步官方数据"}
           </button>
-          <button className="button secondary" disabled={syncing} onClick={syncDryRun} type="button">
-            演示数据
-          </button>
         </div>
       }
     >
@@ -310,7 +281,7 @@ export default function DashboardPage() {
         <div className="metric metric-strong">
           <span>钱包余额</span>
           <strong>{dashboard ? formatCurrency(dashboard.wallet.balance, dashboard.wallet.currency) : loading ? "..." : "-"}</strong>
-          <small>{dashboard?.wallet.status === "not_configured" ? "账务模块未配置" : "可用余额"}</small>
+          <small>{dashboard?.wallet.status === "not_configured" ? "钱包尚未开通" : "可用余额"}</small>
         </div>
         <div className="metric">
           <span>广告户余额</span>
@@ -339,7 +310,7 @@ export default function DashboardPage() {
         <div className="metric">
           <span>访客总数</span>
           <strong>{dashboard ? formatNumber(dashboard.visitors.total) : loading ? "..." : "-"}</strong>
-          <small>{dashboard?.visitors.status === "tracking_not_configured" ? "埋点未接入" : "落地页访客"}</small>
+          <small>{dashboard?.visitors.status === "tracking_not_configured" ? "暂无追踪数据" : "落地页访客"}</small>
         </div>
       </section>
 
@@ -407,11 +378,11 @@ export default function DashboardPage() {
         <div className="panel dashboard-panel">
           <div className="panel-heading">
             <div>
-              <h2>AI 助手日志</h2>
-              <p>先展示固定规则自动化、报表同步和发布链路日志，后续可接 AI 优化建议。</p>
+              <h2>自动化日志</h2>
+              <p>集中查看策略任务、报表同步和投放发布的执行记录。</p>
             </div>
             <a className="button secondary" href="/strategies">
-              固定模型
+              策略管理
             </a>
           </div>
           <div className="ai-log-list" id="ai-logs">
@@ -429,8 +400,8 @@ export default function DashboardPage() {
             ) : (
               <div className="empty-state compact-empty">
                 <div>
-                  <strong>没有 AI 助手日志</strong>
-                  <span>当前先使用固定策略模板和规则自动化。</span>
+                  <strong>暂无自动化日志</strong>
+                  <span>策略或同步任务执行后，记录会显示在这里。</span>
                 </div>
               </div>
             )}
@@ -491,14 +462,6 @@ export default function DashboardPage() {
 
       <section className="metric-grid compact-metrics dashboard-metrics">
         <div className="metric">
-          <span>用户</span>
-          <strong>{inventory.users}</strong>
-        </div>
-        <div className="metric">
-          <span>待审核</span>
-          <strong>{inventory.pending}</strong>
-        </div>
-        <div className="metric">
           <span>渠道连接</span>
           <strong>{inventory.integrations}</strong>
         </div>
@@ -507,7 +470,7 @@ export default function DashboardPage() {
           <strong>{inventory.adAccounts}</strong>
         </div>
         <div className="metric">
-          <span>Campaign</span>
+          <span>投放计划</span>
           <strong>{inventory.campaigns}</strong>
         </div>
         <div className="metric">
@@ -566,13 +529,13 @@ export default function DashboardPage() {
 
         <div className="table-panel">
           <div className="table-header">
-            <h2>Campaign 表现排行</h2>
+            <h2>投放计划表现排行</h2>
             <span className="muted">按消耗降序</span>
           </div>
           <table>
             <thead>
               <tr>
-                <th>Campaign</th>
+                <th>投放计划</th>
                 <th>平台</th>
                 <th>状态</th>
                 <th>消耗</th>
@@ -598,7 +561,7 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>暂无 Campaign 排行</td>
+                  <td colSpan={6}>暂无投放计划排行</td>
                 </tr>
               )}
             </tbody>
@@ -609,7 +572,7 @@ export default function DashboardPage() {
       <section className="table-panel">
         <div className="table-header">
           <h2>最近同步</h2>
-          <span className="muted">官方 API 接入后会显示真实同步任务</span>
+          <span className="muted">最近一次渠道数据同步记录</span>
         </div>
         <table>
           <thead>

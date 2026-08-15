@@ -7,8 +7,7 @@ import {
   PublishTaskStatus,
   PublishStatus,
   ReportSyncStatus,
-  TeamMemberStatus,
-  UserStatus
+  TeamMemberStatus
 } from "@1toufang/database/client";
 import { SecretCryptoService } from "../common/crypto/secret-crypto.service";
 import { AuthenticatedUser } from "../common/types/authenticated-request";
@@ -1104,7 +1103,7 @@ export class ReportsService {
   }
 
   private async buildNotifications(teamId: string) {
-    const [metaIntegrations, tiktokIntegrations, adAccountCount, pendingUserCount, failedSyncRuns, failedPublishTasks] =
+    const [metaIntegrations, tiktokIntegrations, adAccountCount, failedSyncRuns, failedPublishTasks] =
       await Promise.all([
         this.db.integrationAccount.count({
           where: { teamId, platform: Platform.META, status: { in: ["active", "manual"] } }
@@ -1113,7 +1112,6 @@ export class ReportsService {
           where: { teamId, platform: Platform.TIKTOK, status: { in: ["active", "manual"] } }
         }),
         this.db.adAccount.count({ where: { teamId } }),
-        this.db.user.count({ where: { status: UserStatus.PENDING_REVIEW } }),
         this.db.reportSyncRun.findMany({
           where: { teamId, status: ReportSyncStatus.FAILED },
           include: { adAccount: true },
@@ -1146,7 +1144,7 @@ export class ReportsService {
       items.push({
         id: "connect-tiktok",
         title: "TikTok 尚未连接",
-        message: "连接 TikTok 开发者应用后可以同步 advertiser 和投放资产。",
+        message: "完成 TikTok 授权后，可以同步广告账户和投放资产。",
         severity: "info",
         actionHref: "/integrations?platform=TIKTOK",
         createdAt: now
@@ -1164,26 +1162,6 @@ export class ReportsService {
       });
     }
 
-    if (pendingUserCount) {
-      items.push({
-        id: "pending-users",
-        title: `${pendingUserCount} 个注册用户待审核`,
-        message: "用户审核通过后才可以正式登录中后台。",
-        severity: "warning",
-        actionHref: "/admin/users",
-        createdAt: now
-      });
-    }
-
-    items.push({
-      id: "visitor-tracking",
-      title: "访客统计未接入",
-      message: "落地页埋点与访客日报表尚未开发，当前访客数显示为 0。",
-      severity: "info",
-      actionHref: "/dashboard",
-      createdAt: now
-    });
-
     for (const run of failedSyncRuns) {
       items.push({
         id: `report-sync-${run.id}`,
@@ -1198,7 +1176,7 @@ export class ReportsService {
     for (const task of failedPublishTasks) {
       items.push({
         id: `publish-task-${task.id}`,
-        title: "Campaign 发布失败",
+        title: "投放计划发布失败",
         message: `${task.campaign.name}：${task.errorMessage ?? "请进入投放草稿查看发布任务"}`,
         severity: "danger",
         actionHref: "/campaigns",

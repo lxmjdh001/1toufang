@@ -23,16 +23,16 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
           </div>
           <div className="auth-trust-grid">
             <div>
-              <strong>OAuth</strong>
-              <span>渠道授权与 token 加密存储</span>
+              <strong>安全授权</strong>
+              <span>渠道账号统一连接与安全管理</span>
             </div>
             <div>
-              <strong>RBAC</strong>
-              <span>用户审核、员工号和角色权限</span>
+              <strong>团队协作</strong>
+              <span>成员账号、角色与数据权限</span>
             </div>
             <div>
-              <strong>Ops</strong>
-              <span>发布预检、队列追踪和数据看板</span>
+              <strong>稳定投放</strong>
+              <span>发布检查、任务进度与数据看板</span>
             </div>
           </div>
           <div className="auth-process">
@@ -45,7 +45,7 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
         </aside>
         <section className="auth-panel">
           <div className="auth-heading">
-            <span className="auth-eyebrow">Secure workspace</span>
+            <span className="auth-eyebrow">企业级广告投放工作台</span>
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>

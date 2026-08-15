@@ -25,12 +25,18 @@ type AdminShellProps = {
 
 type Me = {
   email: string;
+  currentTeamId?: string | null;
   permissionCodes?: string[];
   profile?: { name?: string | null } | null;
   employeeAccounts?: Array<{
     employeeNo: string;
     role?: { name: string } | null;
-    team?: { name: string } | null;
+    team?: { id: string; name: string } | null;
+  }> | null;
+  teamMemberships?: Array<{
+    teamId: string;
+    role?: { name: string } | null;
+    team: { id: string; name: string };
   }> | null;
 };
 
@@ -129,10 +135,10 @@ const sections = [
       { href: "/campaigns", label: "投放草稿", permissions: ["campaigns.create"] },
       { href: "/strategies", label: "策略模板", permissions: ["strategies.manage"] },
       { href: "/targetings", label: "受众库", permissions: ["targeting.manage"] },
-      { href: "/landing-pages", label: "Money Pages", permissions: ["campaigns.create"] },
-      { href: "/offers", label: "Offers", permissions: ["campaigns.create"] },
+      { href: "/landing-pages", label: "落地页", permissions: ["campaigns.create"] },
+      { href: "/offers", label: "推广项目", permissions: ["campaigns.create"] },
       { href: "/domains", label: "域名", permissions: ["campaigns.create"] },
-      { href: "/pwa-apps", label: "PWA", permissions: ["campaigns.create"] }
+      { href: "/pwa-apps", label: "PWA 应用", permissions: ["campaigns.create"] }
     ]
   },
   {
@@ -349,8 +355,14 @@ export function AdminShell({ title, description, actions, children }: AdminShell
     window.localStorage.setItem("wzzads-language", nextLanguage);
   }
 
-  const currentEmployee = me?.employeeAccounts?.[0];
+  const currentEmployee = me?.employeeAccounts?.find(
+    (employee) => !me?.currentTeamId || employee.team?.id === me.currentTeamId
+  );
+  const currentMembership =
+    me?.teamMemberships?.find((membership) => membership.teamId === me.currentTeamId) ?? me?.teamMemberships?.[0];
   const accountName = me?.profile?.name ?? me?.email ?? "Account";
+  const teamName = currentEmployee?.team?.name ?? currentMembership?.team.name ?? "个人工作区";
+  const roleName = currentEmployee?.role?.name ?? currentMembership?.role?.name;
   const unreadCount = notificationsAcknowledged
     ? 0
     : notifications.filter((item) => item.severity !== "info").length;
@@ -372,7 +384,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
           <div className="semi-admin-logo">WZ</div>
           <div>
             <strong>WzzAds</strong>
-            <span>Ads Ops</span>
+            <span>广告运营中台</span>
           </div>
         </div>
         <Nav
@@ -407,7 +419,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
                 onFocus={() => {
                   if (searchTerm.trim()) setSearchOpen(true);
                 }}
-                placeholder="搜索 Campaign / 账户 / 素材"
+                placeholder="搜索投放计划 / 账户 / 素材"
                 value={searchTerm}
               />
               {searching ? <span className="global-search-status">搜索中</span> : null}
@@ -494,8 +506,8 @@ export function AdminShell({ title, description, actions, children }: AdminShell
               <div>
                 <strong>{accountName}</strong>
                 <span>
-                  {currentEmployee?.team?.name ?? "未选择团队"}
-                  {currentEmployee?.role?.name ? ` / ${currentEmployee.role.name}` : ""}
+                  {teamName}
+                  {roleName ? ` / ${roleName}` : ""}
                   {currentEmployee?.employeeNo ? ` / ${currentEmployee.employeeNo}` : ""}
                 </span>
               </div>

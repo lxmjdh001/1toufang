@@ -305,7 +305,7 @@ export default function TikTokChannelPage() {
           <strong>
             {formatNumber(overview?.apps)} / {formatNumber(overview?.tasks)}
           </strong>
-          <small>Campaign {formatNumber(overview?.campaigns)}</small>
+          <small>投放计划 {formatNumber(overview?.campaigns)}</small>
         </div>
       </section>
 
