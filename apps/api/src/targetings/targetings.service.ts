@@ -158,28 +158,32 @@ export class TargetingsService {
       }
     }
 
-    const [accessToken, adAccount] = await Promise.all([
-      this.resolveMetaAccessToken(teamId),
-      this.db.adAccount.findFirst({
-        where: { teamId, platform: Platform.META },
-        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
-      })
-    ]);
-
-    if (!accessToken || !adAccount) {
+    const accessToken = await this.resolveMetaAccessToken(teamId);
+    if (!accessToken) {
       return { source: "fallback", estimate: null, message: "Meta integration or ad account is not connected" };
     }
 
-    try {
-      const estimate = await this.fetchMetaReachEstimate(accessToken, adAccount.externalId, dto.config);
-      return { source: "official", estimate };
-    } catch (error) {
-      return {
-        source: "fallback",
-        estimate: null,
-        message: error instanceof Error ? error.message : "Meta reach estimate failed"
-      };
+    const adAccountIds = await this.resolveMetaReachEstimateAccountIds(teamId, accessToken);
+    if (!adAccountIds.length) {
+      return { source: "fallback", estimate: null, message: "Meta integration has no accessible ad account" };
     }
+
+    let lastError: unknown;
+    for (const adAccountId of adAccountIds.slice(0, 8)) {
+      try {
+        const estimate = await this.fetchMetaReachEstimate(accessToken, adAccountId, dto.config);
+        return { source: "official", estimate };
+      } catch (error) {
+        lastError = error;
+        if (!isMetaAccountPermissionError(error)) break;
+      }
+    }
+
+    return {
+      source: "fallback",
+      estimate: null,
+      message: lastError instanceof Error ? lastError.message : "Meta reach estimate failed"
+    };
   }
 
   async create(dto: CreateTargetingDto, user: AuthenticatedUser) {
@@ -287,6 +291,39 @@ export class TargetingsService {
       orderBy: { updatedAt: "desc" }
     });
     return integration?.accessTokenEncrypted ? this.secretCrypto.decrypt(integration.accessTokenEncrypted) : null;
+  }
+
+  private async resolveMetaReachEstimateAccountIds(teamId: string, accessToken: string) {
+    const localAccounts = await this.db.adAccount.findMany({
+      where: { teamId, platform: Platform.META },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      select: { externalId: true }
+    });
+    if (!localAccounts.length) return [];
+
+    try {
+      const params = new URLSearchParams({
+        access_token: accessToken,
+        fields: "id",
+        limit: "100"
+      });
+      const response = await fetch(`${this.graphUrl("me/adaccounts")}?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok) return localAccounts.map((account) => account.externalId);
+
+      const rows: unknown[] = Array.isArray(payload.data) ? payload.data : [];
+      const accessibleIds = new Set(
+        rows
+          .map((row: unknown) => stringValue(asRecord(row).id))
+          .filter((value: string | undefined): value is string => Boolean(value))
+          .map(normalizeMetaAccountId)
+      );
+      return localAccounts
+        .map((account) => account.externalId)
+        .filter((externalId) => accessibleIds.has(normalizeMetaAccountId(externalId)));
+    } catch {
+      return localAccounts.map((account) => account.externalId);
+    }
   }
 
   private async resolveTikTokContext(teamId: string) {
@@ -684,6 +721,15 @@ function metaOption(value: unknown) {
 function metaErrorMessage(payload: unknown, fallback: string) {
   const error = asRecord(asRecord(payload).error);
   return stringValue(error.message) ?? fallback;
+}
+
+function normalizeMetaAccountId(value: string) {
+  return value.replace(/^act_/, "");
+}
+
+function isMetaAccountPermissionError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return message.includes("permission") || message.includes("(#200)");
 }
 
 function metaTargetingSpec(config: Record<string, unknown>) {
