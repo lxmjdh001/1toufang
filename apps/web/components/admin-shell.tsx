@@ -25,6 +25,7 @@ type AdminShellProps = {
 
 type Me = {
   email: string;
+  permissionCodes?: string[];
   profile?: { name?: string | null } | null;
   employeeAccounts?: Array<{
     employeeNo: string;
@@ -102,10 +103,10 @@ const sections = [
     label: "工作台",
     icon: <IconHome />,
     links: [
-      { href: "/dashboard", label: "数据看板" },
-      { href: "/demands", label: "需求池" },
-      { href: "/analytics", label: "访客分析" },
-      { href: "/conversions", label: "转化事件" }
+      { href: "/dashboard", label: "数据看板", permissions: ["reports.view"] },
+      { href: "/demands", label: "需求池", permissions: ["campaigns.create"] },
+      { href: "/analytics", label: "访客分析", permissions: ["reports.view"] },
+      { href: "/conversions", label: "转化事件", permissions: ["reports.view"] }
     ]
   },
   {
@@ -113,11 +114,11 @@ const sections = [
     label: "渠道资产",
     icon: <IconGlobe />,
     links: [
-      { href: "/integrations", label: "渠道授权" },
-      { href: "/channels/facebook", label: "Facebook 渠道" },
-      { href: "/channels/tiktok", label: "TikTok 渠道" },
-      { href: "/ad-accounts", label: "广告账户" },
-      { href: "/platform-assets", label: "渠道资产" }
+      { href: "/integrations", label: "渠道授权", permissions: ["ad_accounts.view"] },
+      { href: "/channels/facebook", label: "Facebook 渠道", permissions: ["ad_accounts.view"] },
+      { href: "/channels/tiktok", label: "TikTok 渠道", permissions: ["ad_accounts.view"] },
+      { href: "/ad-accounts", label: "广告账户", permissions: ["ad_accounts.view"] },
+      { href: "/platform-assets", label: "渠道资产", permissions: ["ad_accounts.view"] }
     ]
   },
   {
@@ -125,13 +126,13 @@ const sections = [
     label: "投放中心",
     icon: <IconSend />,
     links: [
-      { href: "/campaigns", label: "投放草稿" },
-      { href: "/strategies", label: "策略模板" },
-      { href: "/targetings", label: "受众库" },
-      { href: "/landing-pages", label: "Money Pages" },
-      { href: "/offers", label: "Offers" },
-      { href: "/domains", label: "域名" },
-      { href: "/pwa-apps", label: "PWA" }
+      { href: "/campaigns", label: "投放草稿", permissions: ["campaigns.create"] },
+      { href: "/strategies", label: "策略模板", permissions: ["strategies.manage"] },
+      { href: "/targetings", label: "受众库", permissions: ["targeting.manage"] },
+      { href: "/landing-pages", label: "Money Pages", permissions: ["campaigns.create"] },
+      { href: "/offers", label: "Offers", permissions: ["campaigns.create"] },
+      { href: "/domains", label: "域名", permissions: ["campaigns.create"] },
+      { href: "/pwa-apps", label: "PWA", permissions: ["campaigns.create"] }
     ]
   },
   {
@@ -139,9 +140,9 @@ const sections = [
     label: "素材创意",
     icon: <IconGallery />,
     links: [
-      { href: "/media-assets", label: "素材库" },
-      { href: "/copywritings", label: "文案库" },
-      { href: "/creatives", label: "创意库" }
+      { href: "/media-assets", label: "素材库", permissions: ["media.manage"] },
+      { href: "/copywritings", label: "文案库", permissions: ["copywriting.manage"] },
+      { href: "/creatives", label: "创意库", permissions: ["media.manage", "copywriting.manage"] }
     ]
   },
   {
@@ -149,11 +150,11 @@ const sections = [
     label: "系统管理",
     icon: <IconSetting />,
     links: [
-      { href: "/admin/users", label: "系统用户" },
-      { href: "/admin/teams", label: "团队管理" },
-      { href: "/admin/employees", label: "员工管理" },
-      { href: "/admin/permissions", label: "权限角色" },
-      { href: "/admin/platform-configs", label: "开发者密钥" }
+      { href: "/admin/users", label: "系统用户", permissions: ["users.manage"] },
+      { href: "/admin/teams", label: "团队管理", permissions: ["users.manage"] },
+      { href: "/admin/employees", label: "员工管理", permissions: ["employees.manage"] },
+      { href: "/admin/permissions", label: "权限角色", permissions: ["roles.manage"] },
+      { href: "/admin/platform-configs", label: "开发者密钥", permissions: ["system.config.manage"] }
     ]
   }
 ];
@@ -187,17 +188,23 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   );
 
   const navItems = useMemo(
-    () =>
-      sections.map((section) => ({
-        itemKey: section.key,
-        text: section.label,
-        icon: section.icon,
-        items: section.links.map((link) => ({
-          itemKey: link.href,
-          text: link.label
+    () => {
+      const granted = new Set(me?.permissionCodes ?? []);
+      return sections
+        .map((section) => ({
+          itemKey: section.key,
+          text: section.label,
+          icon: section.icon,
+          items: section.links
+            .filter((link) => link.permissions.every((permission) => granted.has(permission)))
+            .map((link) => ({
+              itemKey: link.href,
+              text: link.label
+            }))
         }))
-      })),
-    []
+        .filter((section) => section.items.length > 0);
+    },
+    [me?.permissionCodes]
   );
 
   useEffect(() => {
@@ -249,7 +256,10 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   useEffect(() => {
     if (!authChecked || !me) return;
 
-    for (const link of sections.flatMap((section) => section.links)) {
+    const granted = new Set(me.permissionCodes ?? []);
+    for (const link of sections
+      .flatMap((section) => section.links)
+      .filter((item) => item.permissions.every((permission) => granted.has(permission)))) {
       router.prefetch(link.href);
     }
   }, [authChecked, me, router]);

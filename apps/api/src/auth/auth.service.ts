@@ -222,7 +222,12 @@ export class AuthService {
       where: { id: authenticatedUser.id },
       include: {
         profile: true,
-        employeeAccounts: { include: { team: true, role: true } },
+        employeeAccounts: {
+          include: {
+            team: true,
+            role: { include: { permissions: { include: { permission: true } } } }
+          }
+        },
         teamMemberships: {
           include: {
             team: true,
@@ -243,7 +248,31 @@ export class AuthService {
       roleId: authenticatedUser.roleId,
       employeeNo: authenticatedUser.employeeNo
     });
-    return user;
+    const permissionCodes = new Set<string>();
+    const memberships = user.teamMemberships.filter(
+      (membership) => !authenticatedUser.teamId || membership.teamId === authenticatedUser.teamId
+    );
+    for (const membership of memberships) {
+      for (const rolePermission of membership.role?.permissions ?? []) {
+        permissionCodes.add(rolePermission.permission.code);
+      }
+      for (const override of membership.permissions) {
+        if (override.allowed) permissionCodes.add(override.permission.code);
+        else permissionCodes.delete(override.permission.code);
+      }
+    }
+    if (authenticatedUser.employeeNo) {
+      const employee = user.employeeAccounts.find((item) => item.employeeNo === authenticatedUser.employeeNo);
+      for (const rolePermission of employee?.role?.permissions ?? []) {
+        permissionCodes.add(rolePermission.permission.code);
+      }
+    }
+
+    return {
+      ...user,
+      currentTeamId: authenticatedUser.teamId,
+      permissionCodes: Array.from(permissionCodes).sort()
+    };
   }
 
   private assertUserCanLogin(user: User) {

@@ -12,6 +12,25 @@ import { ApproveUserDto, AssignRoleDto, RejectUserDto, SetUserStatusDto, UpdateU
 
 type UserStatusInput = keyof typeof UserStatus;
 
+const customerOwnerPermissionCodes = [
+  "ad_accounts.view",
+  "ad_accounts.manage",
+  "campaigns.create",
+  "campaigns.publish",
+  "campaigns.budget.update",
+  "campaigns.status.update",
+  "campaigns.delete",
+  "media.manage",
+  "copywriting.manage",
+  "targeting.manage",
+  "strategies.manage",
+  "automation.manage",
+  "pixels.manage",
+  "finance.view",
+  "reports.view",
+  "reports.export"
+];
+
 function optionalDate(value?: string | null) {
   if (value === undefined) return undefined;
   if (!value) return null;
@@ -111,6 +130,17 @@ export class UsersService {
               },
               update: {}
             });
+
+      if (!dto.roleId && role) {
+        const permissions = await tx.permission.findMany({
+          where: { code: { in: customerOwnerPermissionCodes } },
+          select: { id: true }
+        });
+        await tx.rolePermission.createMany({
+          data: permissions.map((permission) => ({ roleId: role.id, permissionId: permission.id })),
+          skipDuplicates: true
+        });
+      }
 
       await tx.user.update({
         where: { id },
