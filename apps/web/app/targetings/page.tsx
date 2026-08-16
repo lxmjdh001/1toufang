@@ -1,5 +1,6 @@
 "use client";
 
+import { IconChevronDown } from "@douyinfe/semi-icons";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
@@ -369,6 +370,34 @@ function splitList(value: string) {
     .filter(Boolean);
 }
 
+function advancedConfigCount(draft: TargetingDraft) {
+  const defaultPlacements = draft.platform === "META" ? ["facebook", "instagram"] : ["PLACEMENT_TIKTOK"];
+  const placementSelectionChanged =
+    draft.placementPlatforms.length !== defaultPlacements.length ||
+    draft.placementPlatforms.some((placement) => !defaultPlacements.includes(placement));
+  const childPlacements = [
+    ...draft.facebookPlacements,
+    ...draft.instagramPlacements,
+    ...draft.audienceNetworkPlacements,
+    ...draft.messengerPlacements,
+    ...draft.whatsappPlacements,
+    ...draft.threadsPlacements
+  ].length;
+
+  return (
+    draft.excludedCustomAudiences.length +
+    splitList(draft.excludedInterests).length +
+    (draft.deviceType !== "all" ? 1 : 0) +
+    draft.operatingSystems.length +
+    draft.mobileDeviceTypes.length +
+    (draft.wifiOnly ? 1 : 0) +
+    (placementSelectionChanged ? 1 : 0) +
+    childPlacements +
+    splitList(draft.customAudiences).length +
+    (draft.customAudienceFileName ? 1 : 0)
+  );
+}
+
 function joinList(value?: string[]) {
   return (value ?? []).join(", ");
 }
@@ -629,9 +658,11 @@ export default function TargetingsPage() {
   const [optionLoading, setOptionLoading] = useState<Partial<Record<OptionKind, boolean>>>({});
   const [optionNotice, setOptionNotice] = useState<string | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const metaCount = useMemo(() => rows.filter((row) => row.platform === "META").length, [rows]);
   const tiktokCount = rows.length - metaCount;
+  const configuredAdvancedCount = useMemo(() => advancedConfigCount(draft), [draft]);
   const selectedTargeting = useMemo(() => rows.find((row) => row.id === selectedId) ?? rows[0] ?? null, [rows, selectedId]);
   const viewCounts = useMemo(
     () => Object.fromEntries(viewTabs.map((tab) => [tab.key, rows.filter((row) => viewOf(row) === tab.key).length])) as Record<ViewKey, number>,
@@ -792,9 +823,11 @@ export default function TargetingsPage() {
   }
 
   function edit(row: TargetingRow) {
+    const nextDraft = draftFromRow(row);
     setEditingId(row.id);
     setSelectedId(row.id);
-    setDraft(draftFromRow(row));
+    setDraft(nextDraft);
+    setAdvancedOpen(advancedConfigCount(nextDraft) > 0);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -802,6 +835,7 @@ export default function TargetingsPage() {
     setEditingId(null);
     setDraft(emptyDraft);
     setOptionNotice(null);
+    setAdvancedOpen(false);
   }
 
   function updateDraft<K extends keyof TargetingDraft>(key: K, value: TargetingDraft[K]) {
@@ -1111,8 +1145,24 @@ export default function TargetingsPage() {
             />
           </div>
 
+          <details
+            className="targeting-advanced"
+            onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+            open={advancedOpen}
+          >
+            <summary>
+              <span className="targeting-advanced-title">
+                <strong>高级设置</strong>
+                <small>排除条件、设备系统、投放版位和自定义受众</small>
+              </span>
+              <span className={`targeting-advanced-count ${configuredAdvancedCount ? "active" : ""}`}>
+                {configuredAdvancedCount ? `已配置 ${configuredAdvancedCount} 项` : "可选"}
+              </span>
+              <IconChevronDown className="targeting-advanced-chevron" />
+            </summary>
+            <div className="targeting-advanced-body">
           <div className="form-section-heading">
-            <h3>高级设置</h3>
+            <h3>排除与设备</h3>
           </div>
           <div className="field">
             <label>排除自定义受众（勾选）</label>
@@ -1178,6 +1228,9 @@ export default function TargetingsPage() {
             ) : null}
           </div>
 
+          <div className="form-section-heading">
+            <h3>投放版位</h3>
+          </div>
           <div className="field">
             <label>广告投放平台（勾选）</label>
             <div className="checkbox-grid compact-option-grid">
@@ -1253,6 +1306,8 @@ export default function TargetingsPage() {
               <input id="tags" onChange={(event) => updateDraft("tags", event.target.value)} value={draft.tags} />
             </div>
           </div>
+            </div>
+          </details>
 
           <div className="field">
             <label htmlFor="targetingNotes">备注</label>
