@@ -250,8 +250,8 @@ export default function DashboardPage() {
 
   return (
     <AdminShell
-      title="数据看板"
-      description="核心投放表现、账户资产和同步状态。"
+      title="控制面板"
+      description="账户余额、广告消耗、访客数据和渠道同步状态。"
       actions={
         <div className="dashboard-actions">
           <label>

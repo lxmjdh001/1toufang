@@ -106,49 +106,61 @@ function loadMe(token: string) {
 const sections = [
   {
     key: "workspace",
-    label: "工作台",
+    label: "控制面板",
     icon: <IconHome />,
     links: [
-      { href: "/dashboard", label: "数据看板", permissions: ["reports.view"] },
-      { href: "/demands", label: "需求池", permissions: ["campaigns.create"] },
-      { href: "/analytics", label: "访客分析", permissions: ["reports.view"] },
-      { href: "/conversions", label: "转化事件", permissions: ["reports.view"] }
+      { href: "/dashboard", label: "控制面板", permissions: ["reports.view"] }
     ]
   },
   {
-    key: "assets",
-    label: "渠道资产",
+    key: "campaigns",
+    label: "广告系列",
+    icon: <IconSend />,
+    links: [{ href: "/campaigns", label: "广告系列", permissions: ["campaigns.create"] }]
+  },
+  {
+    key: "channels",
+    label: "渠道",
     icon: <IconGlobe />,
     links: [
       { href: "/integrations", label: "渠道授权", permissions: ["ad_accounts.view"] },
-      { href: "/channels/facebook", label: "Facebook 渠道", permissions: ["ad_accounts.view"] },
-      { href: "/channels/tiktok", label: "TikTok 渠道", permissions: ["ad_accounts.view"] },
+      { href: "/channels/facebook", label: "Facebook", permissions: ["ad_accounts.view"] },
+      { href: "/channels/tiktok", label: "TikTok", permissions: ["ad_accounts.view"] },
       { href: "/ad-accounts", label: "广告账户", permissions: ["ad_accounts.view"] },
       { href: "/platform-assets", label: "渠道资产", permissions: ["ad_accounts.view"] }
     ]
   },
   {
-    key: "delivery",
-    label: "投放中心",
-    icon: <IconSend />,
-    links: [
-      { href: "/campaigns", label: "投放草稿", permissions: ["campaigns.create"] },
-      { href: "/strategies", label: "策略模板", permissions: ["strategies.manage"] },
-      { href: "/targetings", label: "受众库", permissions: ["targeting.manage"] },
-      { href: "/landing-pages", label: "落地页", permissions: ["campaigns.create"] },
-      { href: "/offers", label: "推广项目", permissions: ["campaigns.create"] },
-      { href: "/domains", label: "域名", permissions: ["campaigns.create"] },
-      { href: "/pwa-apps", label: "PWA 应用", permissions: ["campaigns.create"] }
-    ]
-  },
-  {
-    key: "creative",
-    label: "素材创意",
+    key: "media",
+    label: "素材库",
     icon: <IconGallery />,
     links: [
       { href: "/media-assets", label: "素材库", permissions: ["media.manage"] },
       { href: "/copywritings", label: "文案库", permissions: ["copywriting.manage"] },
       { href: "/creatives", label: "创意库", permissions: ["media.manage", "copywriting.manage"] }
+    ]
+  },
+  {
+    key: "resources",
+    label: "资源",
+    icon: <IconSetting />,
+    links: [
+      { href: "/strategies", label: "策略模板", permissions: ["strategies.manage"] },
+      { href: "/targetings", label: "受众库", permissions: ["targeting.manage"] },
+      { href: "/landing-pages", label: "落地页", permissions: ["campaigns.create"] },
+      { href: "/offers", label: "推广项目", permissions: ["campaigns.create"] },
+      { href: "/domains", label: "域名", permissions: ["campaigns.create"] },
+      { href: "/pwa-apps", label: "PWA 应用", permissions: ["campaigns.create"] },
+      { href: "/demands", label: "需求池", permissions: ["campaigns.create"] }
+    ]
+  },
+  {
+    key: "reports",
+    label: "报告",
+    icon: <IconHome />,
+    links: [
+      { href: "/analytics", label: "访客分析", permissions: ["reports.view"] },
+      { href: "/conversions", label: "转化事件", permissions: ["reports.view"] }
     ]
   },
   {

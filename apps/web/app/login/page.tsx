@@ -42,7 +42,7 @@ export default function LoginPage() {
           password: form.get("password")
         })
       });
-      saveAuthTokens(data.accessToken, data.refreshToken);
+      saveAuthTokens(data.accessToken, data.refreshToken, form.get("remember") === "on");
       setResult("登录成功，正在进入中后台...");
       window.location.assign("/dashboard");
     } catch (err) {
@@ -62,7 +62,7 @@ export default function LoginPage() {
 
   return (
     <AuthCard
-      title="登录工作台"
+      title="登录"
       subtitle="使用已审核开通的企业账号进入投放运营中台。"
       footer={
         <>
@@ -81,6 +81,10 @@ export default function LoginPage() {
           <label htmlFor="password">密码</label>
           <input autoComplete="current-password" id="password" name="password" placeholder="请输入登录密码" required type="password" />
         </div>
+        <label className="check-field inline-check auth-remember">
+          <input name="remember" type="checkbox" />
+          <span>保持登录状态</span>
+        </label>
         {result ? (
           <div className="notice success">
             {result}

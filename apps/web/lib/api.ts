@@ -27,17 +27,24 @@ function nestedErrorCode(message: ApiErrorPayload["message"]) {
 }
 
 export function getAccessToken() {
-  return typeof window !== "undefined" ? window.localStorage.getItem("accessToken") : null;
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("accessToken") ?? window.sessionStorage.getItem("accessToken");
 }
 
-export function saveAuthTokens(accessToken: string, refreshToken: string) {
-  window.localStorage.setItem("accessToken", accessToken);
-  window.localStorage.setItem("refreshToken", refreshToken);
+export function saveAuthTokens(accessToken: string, refreshToken: string, remember = true) {
+  const storage = remember ? window.localStorage : window.sessionStorage;
+  const otherStorage = remember ? window.sessionStorage : window.localStorage;
+  otherStorage.removeItem("accessToken");
+  otherStorage.removeItem("refreshToken");
+  storage.setItem("accessToken", accessToken);
+  storage.setItem("refreshToken", refreshToken);
 }
 
 export function clearAuthTokens() {
   window.localStorage.removeItem("accessToken");
   window.localStorage.removeItem("refreshToken");
+  window.sessionStorage.removeItem("accessToken");
+  window.sessionStorage.removeItem("refreshToken");
 }
 
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
