@@ -57,6 +57,7 @@ export class WorkspaceRecordsService {
   async action(id: string, action: string, user: AuthenticatedUser) {
     const teamId = await this.resolveTeamId(user);
     const source = await this.ensure(id, teamId);
+    this.assertWorkflowStep(source.module, source.status, action);
     if (action === "duplicate") {
       const copy = await this.db.workspaceRecord.create({
         data: {
@@ -76,12 +77,29 @@ export class WorkspaceRecordsService {
       pause: "paused",
       run: "running",
       send: "sent",
+      fetch_reviews: "active",
+      approve: "approved",
+      reject: "rejected",
+      pay: "paid",
       archive: "archived",
       restore: "draft"
     };
-    const nextStatus = statusByAction[action];
+    const nextStatus = source.module === "vcc" && action === "approve" ? "active" : statusByAction[action];
     if (!nextStatus) throw new BadRequestException("Unsupported workspace action");
-    const record = await this.db.workspaceRecord.update({ where: { id }, data: { status: nextStatus } });
+    const now = new Date().toISOString();
+    const nextConfig = {
+      ...asRecord(source.config),
+      ...(action === "fetch_reviews" ? { lastReviewSyncAt: now, reviewSyncStatus: "succeeded" } : {}),
+      ...(action === "run" ? { lastRunAt: now, lastRunStatus: "succeeded" } : {}),
+      ...(action === "send" ? { sentAt: now, sendStatus: "succeeded" } : {}),
+      ...(action === "approve" ? { approvedAt: now } : {}),
+      ...(action === "reject" ? { rejectedAt: now } : {}),
+      ...(action === "pay" ? { paidAt: now } : {})
+    };
+    const record = await this.db.workspaceRecord.update({
+      where: { id },
+      data: { status: nextStatus, config: nextConfig as Prisma.InputJsonValue }
+    });
     await this.audit(user, teamId, `WORKSPACE_RECORD_${action.toUpperCase()}`, id, { module: record.module, status: nextStatus });
     return record;
   }
@@ -100,6 +118,18 @@ export class WorkspaceRecordsService {
     return record;
   }
 
+  private assertWorkflowStep(module: string, status: string, action: string) {
+    if (module === "newsletter" && action === "send" && status !== "draft") {
+      throw new BadRequestException("只有草稿可以发送");
+    }
+    if (["commission", "withdrawal"].includes(module) && action === "pay" && status !== "approved") {
+      throw new BadRequestException("请先审核通过，再执行支付");
+    }
+    if (module === "vcc" && action === "approve" && status !== "pending") {
+      throw new BadRequestException("只有待审核申请可以开通");
+    }
+  }
+
   private async resolveTeamId(user: AuthenticatedUser) {
     if (user.teamId) return user.teamId;
     const membership = await this.db.teamMember.findFirst({
@@ -115,4 +145,8 @@ export class WorkspaceRecordsService {
       data: { actorId: user.id, teamId, action, entityType: "workspace_record", entityId, metadata: metadata as Prisma.InputJsonValue }
     });
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }

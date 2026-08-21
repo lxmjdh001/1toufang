@@ -33,6 +33,8 @@ type WorkspaceRecord = {
 
 const defaultStatuses = [
   { value: "draft", label: "草稿" },
+  { value: "pending", label: "待处理" },
+  { value: "running", label: "执行中" },
   { value: "active", label: "已启用" },
   { value: "paused", label: "已暂停" },
   { value: "archived", label: "已归档" }
@@ -47,16 +49,43 @@ function statusLabel(status: string, options: Array<{ value: string; label: stri
 }
 
 function statusClass(status: string) {
-  if (["active", "sent", "running"].includes(status)) return "pill success";
+  if (["active", "sent", "running", "approved", "paid"].includes(status)) return "pill success";
   if (["paused", "pending"].includes(status)) return "pill warning";
   if (["archived", "failed"].includes(status)) return "pill danger";
   return "pill";
+}
+
+function actionLabel(action: string) {
+  const labels: Record<string, string> = {
+    run: "执行",
+    send: "发送",
+    fetch_reviews: "同步评论",
+    activate: "启用",
+    pause: "暂停",
+    approve: "通过",
+    reject: "驳回",
+    pay: "标记已支付",
+    archive: "归档",
+    restore: "恢复"
+  };
+  return labels[action] ?? action;
 }
 
 function valueText(value: unknown) {
   if (value === undefined || value === null || value === "") return "未设置";
   if (typeof value === "boolean") return value ? "是" : "否";
   return String(value);
+}
+
+function actionSummary(row: WorkspaceRecord) {
+  const config = row.config ?? {};
+  const lastRunAt = valueText(config.lastRunAt);
+  const lastReviewSyncAt = valueText(config.lastReviewSyncAt);
+  const sentAt = valueText(config.sentAt);
+  if (lastReviewSyncAt !== "未设置") return `评论同步：${formatDate(String(lastReviewSyncAt))}`;
+  if (lastRunAt !== "未设置") return `最近执行：${formatDate(String(lastRunAt))}`;
+  if (sentAt !== "未设置") return `发送时间：${formatDate(String(sentAt))}`;
+  return "尚未执行动作";
 }
 
 export function WorkspaceRecordPage({
@@ -222,10 +251,10 @@ export function WorkspaceRecordPage({
                   {pagedRows.map((row) => (
                     <tr key={row.id}>
                       <td><strong className="workspace-nowrap">{row.name}</strong><small className="muted workspace-nowrap">{row.createdBy?.profile?.name ?? row.createdBy?.email ?? "-"}</small></td>
-                      <td><div className="workspace-summary">{fields.slice(0, 3).map((field) => <span key={field.key}>{field.label}：{valueText(row.config?.[field.key])}</span>)}</div></td>
+                      <td><div className="workspace-summary">{fields.slice(0, 3).map((field) => <span key={field.key}>{field.label}：{valueText(row.config?.[field.key])}</span>)}<span>{actionSummary(row)}</span></div></td>
                       <td><span className={statusClass(row.status)}>{statusLabel(row.status, statusOptions)}</span></td>
                       <td className="workspace-nowrap">{formatDate(row.updatedAt)}</td>
-                      <td><div className="workspace-row-actions"><button className="button small" onClick={() => startEdit(row)} type="button">编辑</button><button className="button small" disabled={busyId === row.id} onClick={() => runAction(row.id, "duplicate")} type="button">复制</button>{actions.includes("run") ? <button className="button small" disabled={busyId === row.id} onClick={() => runAction(row.id, "run")} type="button">执行</button> : null}<button className="button small danger-button" disabled={busyId === row.id} onClick={() => remove(row.id)} type="button">删除</button></div></td>
+                      <td><div className="workspace-row-actions"><button className="button small" onClick={() => startEdit(row)} type="button">编辑</button><button className="button small" disabled={busyId === row.id} onClick={() => runAction(row.id, "duplicate")} type="button">复制</button>{actions.map((action) => <button className="button small" disabled={busyId === row.id} key={action} onClick={() => runAction(row.id, action)} type="button">{actionLabel(action)}</button>)}<button className="button small danger-button" disabled={busyId === row.id} onClick={() => remove(row.id)} type="button">删除</button></div></td>
                     </tr>
                   ))}
                 </tbody>
