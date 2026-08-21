@@ -366,7 +366,8 @@ export class ReportsService {
       strategies,
       targetings,
       pwaApps,
-      demands
+      demands,
+      workspaceRecords
     ] = await Promise.all([
       this.db.campaign.findMany({
         where: { teamId, name: contains },
@@ -445,6 +446,12 @@ export class ReportsService {
         select: { id: true, title: true, type: true, priority: true, status: true, updatedAt: true },
         orderBy: { updatedAt: "desc" },
         take: 4
+      }),
+      this.db.workspaceRecord.findMany({
+        where: { teamId, OR: [{ name: contains }, { module: contains }, { status: contains }] },
+        select: { id: true, name: true, module: true, status: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 8
       })
     ]);
 
@@ -465,7 +472,8 @@ export class ReportsService {
       ...strategies.map((row) => searchItem(row.id, "策略", row.name, row.platform, "/strategies", row.updatedAt)),
       ...targetings.map((row) => searchItem(row.id, "受众", row.name, row.platform, "/targetings", row.updatedAt)),
       ...pwaApps.map((row) => searchItem(row.id, "PWA", row.name, `${row.status} / ${row.startUrl}`, "/pwa-apps", row.updatedAt)),
-      ...demands.map((row) => searchItem(row.id, "需求", row.title, `${row.type} / ${row.priority} / ${row.status}`, "/demands", row.updatedAt))
+      ...demands.map((row) => searchItem(row.id, "需求", row.title, `${row.type} / ${row.priority} / ${row.status}`, "/demands", row.updatedAt)),
+      ...workspaceRecords.map((row) => searchItem(row.id, workspaceModuleLabel(row.module), row.name, row.status, workspaceModulePath(row.module), row.updatedAt))
     ]
       .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
       .slice(0, 12);
@@ -1401,6 +1409,38 @@ function searchItem(id: string, type: string, title: string, description: string
     href,
     updatedAt
   };
+}
+
+function workspaceModuleLabel(module: string) {
+  const labels: Record<string, string> = {
+    optimizer: "优化器",
+    copilot: "Copilot",
+    store: "店铺",
+    tool: "工具",
+    newsletter: "Newsletter",
+    billing: "账单",
+    "referral-link": "推荐链接",
+    commission: "佣金",
+    withdrawal: "提现",
+    vcc: "虚拟卡"
+  };
+  return labels[module] ?? "工作区记录";
+}
+
+function workspaceModulePath(module: string) {
+  const paths: Record<string, string> = {
+    optimizer: "/optimizers",
+    copilot: "/copilot",
+    store: "/stores",
+    tool: "/tools",
+    newsletter: "/newsletter",
+    billing: "/billings",
+    "referral-link": "/referral-links",
+    commission: "/commissions",
+    withdrawal: "/withdrawals",
+    vcc: "/vcc"
+  };
+  return paths[module] ?? "/dashboard";
 }
 
 function actionTitle(action: string) {

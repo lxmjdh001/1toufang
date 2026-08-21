@@ -3556,6 +3556,140 @@ tbody tr:hover {
   color: var(--danger);
 }
 
+.workspace-resource-layout {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+}
+
+.workspace-metrics .metric {
+  min-height: 104px;
+  padding: 14px 16px;
+}
+
+.workspace-metrics .metric strong {
+  font-size: 22px;
+}
+
+.workspace-table-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.table-header > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.workspace-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.workspace-toolbar input,
+.workspace-toolbar select {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 34px;
+  min-width: 140px;
+  padding: 0 9px;
+}
+
+.workspace-table-scroll {
+  overflow-x: auto;
+}
+
+.workspace-table {
+  min-width: 860px;
+}
+
+.workspace-table th,
+.workspace-table td {
+  padding: 11px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.workspace-table td:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.workspace-nowrap {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-summary {
+  color: var(--muted);
+  display: flex;
+  gap: 12px;
+  max-width: 310px;
+  overflow: hidden;
+}
+
+.workspace-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.workspace-editor {
+  position: sticky;
+  top: 16px;
+}
+
+.workspace-editor .panel-heading {
+  align-items: start;
+}
+
+.workspace-editor .panel-heading p {
+  font-size: 12px;
+  margin: 3px 0 0;
+}
+
+.workspace-pagination {
+  border-top: 1px solid var(--border);
+  margin: 0;
+  padding: 12px;
+}
+
+.danger-button {
+  color: var(--danger);
+}
+
+@media (max-width: 1100px) {
+  .workspace-resource-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-editor {
+    position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .workspace-toolbar {
+    width: 100%;
+  }
+
+  .workspace-toolbar input,
+  .workspace-toolbar select {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
 .empty-state {
   align-items: center;
   color: var(--muted);

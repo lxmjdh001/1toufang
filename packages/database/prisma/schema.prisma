@@ -133,6 +133,7 @@ model User {
   targetings          Targeting[]         @relation("TargetingCreator")
   campaigns           Campaign[]          @relation("CampaignCreator")
   publishTasks        PublishTask[]       @relation("PublishTaskRequester")
+  workspaceRecords    WorkspaceRecord[]  @relation("WorkspaceRecordCreator")
 }
 
 model UserProfile {
@@ -202,6 +203,7 @@ model Team {
   accountDailyStats   AccountDailyStat[]
   campaignDailyStats  CampaignDailyStat[]
   reportSyncRuns      ReportSyncRun[]
+  workspaceRecords    WorkspaceRecord[]
   auditLogs           AuditLog[]
 }
 
@@ -567,6 +569,24 @@ model Demand {
   updatedAt   DateTime @updatedAt
 
   team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceRecord {
+  id          String   @id @default(cuid())
+  teamId      String
+  createdById String?
+  module      String
+  name        String
+  status      String   @default("draft")
+  config      Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("WorkspaceRecordCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, module, updatedAt])
+  @@index([teamId, status])
 }
 
 model VisitorLog {

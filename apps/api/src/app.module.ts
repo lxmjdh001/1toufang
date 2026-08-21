@@ -26,6 +26,7 @@ import { StrategiesModule } from "./strategies/strategies.module";
 import { TargetingsModule } from "./targetings/targetings.module";
 import { TeamsModule } from "./teams/teams.module";
 import { UsersModule } from "./users/users.module";
+import { WorkspaceRecordsModule } from "./workspace-records/workspace-records.module";
 
 @Module({
   imports: [
@@ -62,7 +63,8 @@ import { UsersModule } from "./users/users.module";
     PlatformAssetsModule,
     PwaAppsModule,
     ReportsModule,
-    AuditLogsModule
+    AuditLogsModule,
+    WorkspaceRecordsModule
   ]
 })
 export class AppModule {}

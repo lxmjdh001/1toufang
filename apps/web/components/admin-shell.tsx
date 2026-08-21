@@ -127,7 +127,8 @@ const sections = [
       { href: "/channels/facebook", label: "Facebook", permissions: ["ad_accounts.view"] },
       { href: "/channels/tiktok", label: "TikTok", permissions: ["ad_accounts.view"] },
       { href: "/ad-accounts", label: "广告账户", permissions: ["ad_accounts.view"] },
-      { href: "/platform-assets", label: "渠道资产", permissions: ["ad_accounts.view"] }
+      { href: "/platform-assets", label: "渠道资产", permissions: ["ad_accounts.view"] },
+      { href: "/vcc", label: "虚拟卡", permissions: ["campaigns.create"] }
     ]
   },
   {
@@ -151,7 +152,11 @@ const sections = [
       { href: "/offers", label: "推广项目", permissions: ["campaigns.create"] },
       { href: "/domains", label: "域名", permissions: ["campaigns.create"] },
       { href: "/pwa-apps", label: "PWA 应用", permissions: ["campaigns.create"] },
-      { href: "/demands", label: "需求池", permissions: ["campaigns.create"] }
+      { href: "/demands", label: "需求池", permissions: ["campaigns.create"] },
+      { href: "/stores", label: "店铺", permissions: ["campaigns.create"] },
+      { href: "/tools", label: "工具", permissions: ["campaigns.create"] },
+      { href: "/optimizers", label: "优化器", permissions: ["campaigns.create"] },
+      { href: "/copilot", label: "Copilot", permissions: ["campaigns.create"] }
     ]
   },
   {
@@ -160,7 +165,19 @@ const sections = [
     icon: <IconHome />,
     links: [
       { href: "/analytics", label: "访客分析", permissions: ["reports.view"] },
-      { href: "/conversions", label: "转化事件", permissions: ["reports.view"] }
+      { href: "/conversions", label: "转化事件", permissions: ["reports.view"] },
+      { href: "/billings", label: "账单", permissions: ["campaigns.create"] },
+      { href: "/newsletter", label: "Newsletter", permissions: ["campaigns.create"] }
+    ]
+  },
+  {
+    key: "referral",
+    label: "推广返佣",
+    icon: <IconSend />,
+    links: [
+      { href: "/referral-links", label: "推荐链接", permissions: ["campaigns.create"] },
+      { href: "/commissions", label: "佣金", permissions: ["campaigns.create"] },
+      { href: "/withdrawals", label: "提现", permissions: ["campaigns.create"] }
     ]
   },
   {

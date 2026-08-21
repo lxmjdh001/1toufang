@@ -287,28 +287,28 @@ const viewTabs: Array<{ key: ViewKey; label: string }> = [
 
 const groupOptions: Array<{ key: GroupKey; label: string }> = [
   { key: "none", label: "不分组" },
-  { key: "team", label: "Team" },
-  { key: "user", label: "User" },
-  { key: "project", label: "Project" },
-  { key: "page", label: "Page" },
-  { key: "tag", label: "Tag" },
-  { key: "status", label: "Status" },
-  { key: "createDate", label: "Create Date" }
+  { key: "team", label: "团队" },
+  { key: "user", label: "创建者" },
+  { key: "project", label: "项目" },
+  { key: "page", label: "主页" },
+  { key: "tag", label: "标签" },
+  { key: "status", label: "状态" },
+  { key: "createDate", label: "创建日期" }
 ];
 
 const statusOptions = ["DRAFT", "CREATING", "PUBLISHED", "PARTIALLY_FAILED", "FAILED", "PAUSED", "ACTIVE", "ARCHIVED"];
 
 const clauseOptions: Array<{ key: FilterClause; label: string }> = [
-  { key: "equals", label: "Is equal to" },
-  { key: "not_equals", label: "Is not equal to" },
-  { key: "starts_with", label: "Starts with" },
-  { key: "not_starts_with", label: "Does not start with" },
-  { key: "ends_with", label: "Ends with" },
-  { key: "not_ends_with", label: "Does not end with" },
-  { key: "contains", label: "Contains" },
-  { key: "not_contains", label: "Does not contain" },
-  { key: "is_set", label: "Is set" },
-  { key: "is_not_set", label: "Is not set" }
+  { key: "equals", label: "等于" },
+  { key: "not_equals", label: "不等于" },
+  { key: "starts_with", label: "开头为" },
+  { key: "not_starts_with", label: "开头不为" },
+  { key: "ends_with", label: "结尾为" },
+  { key: "not_ends_with", label: "结尾不为" },
+  { key: "contains", label: "包含" },
+  { key: "not_contains", label: "不包含" },
+  { key: "is_set", label: "已设置" },
+  { key: "is_not_set", label: "未设置" }
 ];
 
 const campaignColumns: Array<{ key: ColumnKey; label: string }> = [
@@ -1373,7 +1373,7 @@ export default function CampaignsPage() {
             <p>Campaign 保存后进入发布队列，可先预检再提交官方渠道。</p>
           </div>
           <button className="button secondary" onClick={randName} type="button">
-            Rand name
+            生成名称
           </button>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -1386,7 +1386,7 @@ export default function CampaignsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="campaignStrategy">Campaign Strategy</label>
+                <label htmlFor="campaignStrategy">广告策略</label>
               <div className="inline-control">
                 <select id="campaignStrategy" onChange={(event) => updateDraft("strategyId", event.target.value)} value={draft.strategyId}>
                   <option value="">不选择</option>
@@ -1397,7 +1397,7 @@ export default function CampaignsPage() {
                   ))}
                 </select>
                 <a className="button secondary" href="/strategies">
-                  Create
+                  新建
                 </a>
               </div>
             </div>
@@ -1411,11 +1411,11 @@ export default function CampaignsPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="campaignProject">Project</label>
+              <label htmlFor="campaignProject">项目</label>
               <input id="campaignProject" onChange={(event) => updateDraft("project", event.target.value)} value={draft.project} />
             </div>
             <div className="field">
-              <label htmlFor="campaignTags">Tags</label>
+              <label htmlFor="campaignTags">标签</label>
               <input id="campaignTags" onChange={(event) => updateDraft("tags", event.target.value)} value={draft.tags} />
             </div>
             <div className="field">
@@ -1472,7 +1472,7 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="campaignPage">Page</label>
+              <label htmlFor="campaignPage">主页</label>
               <select id="campaignPage" onChange={(event) => updateDraft("pageAssetId", event.target.value)} value={draft.pageAssetId}>
                 <option value="">不选择</option>
                 {filteredPageAssets.map((row) => (
@@ -1483,7 +1483,7 @@ export default function CampaignsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="campaignLandingPage">Money page</label>
+              <label htmlFor="campaignLandingPage">落地页</label>
               <div className="inline-control">
                 <select
                   id="campaignLandingPage"
@@ -1498,12 +1498,12 @@ export default function CampaignsPage() {
                   ))}
                 </select>
                 <a className="button secondary" href="/landing-pages">
-                  Create
+                  新建
                 </a>
               </div>
             </div>
             <div className="field">
-              <label htmlFor="campaignOffer">Offer</label>
+              <label htmlFor="campaignOffer">推广项目</label>
               <div className="inline-control">
                 <select id="campaignOffer" onChange={(event) => updateDraft("offerId", event.target.value)} required value={draft.offerId}>
                   <option value="">选择 Offer</option>
@@ -1514,12 +1514,12 @@ export default function CampaignsPage() {
                   ))}
                 </select>
                 <a className="button secondary" href="/offers">
-                  Create
+                  新建
                 </a>
               </div>
             </div>
             <div className="field">
-              <label htmlFor="campaignDomain">Custom Domain</label>
+              <label htmlFor="campaignDomain">域名</label>
               <select id="campaignDomain" onChange={(event) => updateDraft("domainId", event.target.value)} value={draft.domainId}>
                 <option value="">不选择</option>
                 {domains.map((row) => (
@@ -1538,7 +1538,7 @@ export default function CampaignsPage() {
               />
             </div>
             <div className="field ad-setup-field">
-              <label>Ad setup</label>
+              <label>广告创意配置</label>
               <div className="ad-setup-options">
                 {[
                   { key: "EXISTING_POST", label: "使用已有帖子" },
@@ -1558,7 +1558,7 @@ export default function CampaignsPage() {
             </div>
             {draft.adSetupMode === "EXISTING_POST" ? (
               <div className="field">
-                <label htmlFor="campaignPostId">Existing post ID</label>
+                <label htmlFor="campaignPostId">已有帖子 ID</label>
                 <input
                   id="campaignPostId"
                   onChange={(event) => updateDraft("existingPostId", event.target.value)}
@@ -1568,9 +1568,9 @@ export default function CampaignsPage() {
             ) : null}
             {draft.adSetupMode === "EXISTING_CREATIVE" ? (
               <div className="field creative-picker-field">
-                <label htmlFor="campaignCreative">Ad creatives</label>
+                <label htmlFor="campaignCreative">广告创意</label>
                 <div className="selected-item">
-                  {draft.adCreativeId ? creativeName(draft.adCreativeId) || draft.adCreativeId : "No item selected yet."}
+                  {draft.adCreativeId ? creativeName(draft.adCreativeId) || draft.adCreativeId : "暂未选择"}
                 </div>
                 <div className="inline-control">
                   <select
@@ -1578,7 +1578,7 @@ export default function CampaignsPage() {
                     onChange={(event) => updateDraft("adCreativeId", event.target.value)}
                     value={draft.adCreativeId}
                   >
-                    <option value="">Select ad creative</option>
+                    <option value="">选择广告创意</option>
                     {creatives.map((row) => (
                       <option key={row.id} value={row.id}>
                         {row.name}
@@ -1586,22 +1586,22 @@ export default function CampaignsPage() {
                     ))}
                   </select>
                   <button className="button secondary" onClick={() => updateDraft("adCreativeId", "")} type="button">
-                    Remove item
+                    移除
                   </button>
                 </div>
               </div>
             ) : null}
             {draft.adSetupMode === "CREATE_CREATIVE" ? (
               <div className="field creative-picker-field">
-                <label>Ad creatives</label>
-                <div className="selected-item">No item selected yet.</div>
+                <label>广告创意</label>
+                <div className="selected-item">创建 Campaign 时生成创意</div>
                 <a className="button secondary compact-link-button" href="/creatives">
-                  Create
+                  新建
                 </a>
               </div>
             ) : null}
             <div className="field">
-              <label htmlFor="campaignTargeting">Targeting</label>
+              <label htmlFor="campaignTargeting">受众</label>
               <div className="inline-control">
                 <select id="campaignTargeting" onChange={(event) => updateDraft("targetingId", event.target.value)} value={draft.targetingId}>
                   <option value="">不选择</option>
@@ -1612,7 +1612,7 @@ export default function CampaignsPage() {
                   ))}
                 </select>
                 <a className="button secondary" href="/targetings">
-                  Create
+                  新建
                 </a>
               </div>
             </div>
@@ -1641,7 +1641,7 @@ export default function CampaignsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="campaignOptimizers">Optimizers</label>
+              <label htmlFor="campaignOptimizers">优化器</label>
               <input
                 id="campaignOptimizers"
                 onChange={(event) => updateDraft("optimizerIds", event.target.value)}
@@ -1649,7 +1649,7 @@ export default function CampaignsPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="campaignAssistants">AI Assistants</label>
+              <label htmlFor="campaignAssistants">AI 助手</label>
               <input
                 id="campaignAssistants"
                 onChange={(event) => updateDraft("aiAssistantIds", event.target.value)}
@@ -1663,7 +1663,7 @@ export default function CampaignsPage() {
                 onChange={(event) => updateDraft("splitTest", event.target.checked)}
                 type="checkbox"
               />
-              <span>Split test</span>
+              <span>分组测试</span>
             </label>
           </div>
           <div className="field campaign-notes-field">
@@ -1696,7 +1696,7 @@ export default function CampaignsPage() {
               onClick={() => setSaveMode("save")}
               type="submit"
             >
-              {saving && saveMode === "save" ? "保存中..." : effectiveBatchAdAccountIds.length ? "批量创建" : "Save"}
+              {saving && saveMode === "save" ? "保存中..." : effectiveBatchAdAccountIds.length ? "批量创建" : "保存"}
             </button>
             <button
               className="button secondary"
@@ -1704,7 +1704,7 @@ export default function CampaignsPage() {
               onClick={() => setSaveMode("continue")}
               type="submit"
             >
-              {saving && saveMode === "continue" ? "保存中..." : "Save and create another"}
+              {saving && saveMode === "continue" ? "保存中..." : "保存并创建另一个"}
             </button>
           </div>
         </form>
@@ -1781,7 +1781,7 @@ export default function CampaignsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="campaignStatusFilter">Status</label>
+              <label htmlFor="campaignStatusFilter">状态</label>
               <select id="campaignStatusFilter" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
                 <option value="">所有</option>
                 {statusOptions.map((status) => (
@@ -1792,19 +1792,19 @@ export default function CampaignsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="campaignStartAt">Start</label>
+              <label htmlFor="campaignStartAt">更新时间起始</label>
               <input id="campaignStartAt" onChange={(event) => setStartAt(event.target.value)} type="datetime-local" value={startAt} />
             </div>
             <div className="field">
-              <label htmlFor="campaignEndAt">End</label>
+              <label htmlFor="campaignEndAt">更新时间结束</label>
               <input id="campaignEndAt" onChange={(event) => setEndAt(event.target.value)} type="datetime-local" value={endAt} />
             </div>
             <div className="field">
-              <label htmlFor="campaignCreatedFrom">Created from</label>
+              <label htmlFor="campaignCreatedFrom">创建日期起始</label>
               <input id="campaignCreatedFrom" onChange={(event) => setCreatedFrom(event.target.value)} type="date" value={createdFrom} />
             </div>
             <div className="field">
-              <label htmlFor="campaignCreatedUntil">Created until</label>
+              <label htmlFor="campaignCreatedUntil">创建日期结束</label>
               <input
                 id="campaignCreatedUntil"
                 onChange={(event) => setCreatedUntil(event.target.value)}
@@ -1813,7 +1813,7 @@ export default function CampaignsPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="campaignProjectClause">Project id</label>
+              <label htmlFor="campaignProjectClause">项目编号</label>
               <div className="filter-clause-control">
                 <select
                   id="campaignProjectClause"
@@ -1830,7 +1830,7 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="campaignCasesClause">Cases id</label>
+              <label htmlFor="campaignCasesClause">案例编号</label>
               <div className="filter-clause-control">
                 <select
                   id="campaignCasesClause"
@@ -1858,11 +1858,11 @@ export default function CampaignsPage() {
           <div className="campaign-field-panel">
             <div className="field-panel-heading">
               <div>
-                <strong>Visible {visibleColumnKeys.length}</strong>
-                <span>Hidden {campaignColumns.length - visibleColumnKeys.length}</span>
+                <strong>已显示 {visibleColumnKeys.length}</strong>
+                <span>已隐藏 {campaignColumns.length - visibleColumnKeys.length}</span>
               </div>
               <button className="button secondary" onClick={() => setVisibleColumnKeys(defaultCampaignColumnKeys)} type="button">
-                Enable all
+                显示全部
               </button>
             </div>
             <div className="field-toggle-list">
@@ -1892,7 +1892,7 @@ export default function CampaignsPage() {
               onClick={() => void applyCurrentViewToSelected()}
               type="button"
             >
-              Apply view
+              应用视图
             </button>
             <button
               className="button secondary"
@@ -1900,16 +1900,16 @@ export default function CampaignsPage() {
               onClick={() => void removeSelectedFromFavorites()}
               type="button"
             >
-              Remove from favorites
+              移出收藏
             </button>
-            <span className="bulk-action-label">Ad Controls</span>
+            <span className="bulk-action-label">广告控制</span>
             <button
               className="button secondary"
               disabled={!selectedCount || Boolean(busyAction)}
               onClick={() => void runBulkAction("retry_publish")}
               type="button"
             >
-              Retry publish
+              重试发布
             </button>
             <button
               className="button secondary"
@@ -1917,7 +1917,7 @@ export default function CampaignsPage() {
               onClick={() => void runBulkAction("stop_selected")}
               type="button"
             >
-              Stop selected
+              停止选中项
             </button>
             <button
               className="button secondary"
@@ -1925,7 +1925,7 @@ export default function CampaignsPage() {
               onClick={() => void runBulkAction("start_selected")}
               type="button"
             >
-              Start selected
+              启动选中项
             </button>
             <button
               className="button danger"
@@ -1933,14 +1933,14 @@ export default function CampaignsPage() {
               onClick={() => void runBulkAction("delete_selected")}
               type="button"
             >
-              Delete selected
+              删除选中项
             </button>
-            <span className="bulk-action-label">Budget Control</span>
+            <span className="bulk-action-label">预算控制</span>
           </div>
-          <div className="bulk-section-title">Content & Optimization</div>
+          <div className="bulk-section-title">内容与优化</div>
           <div className="bulk-config-grid">
             <div className="field">
-              <label htmlFor="bulkBudget">Modify daily budget</label>
+              <label htmlFor="bulkBudget">调整每日预算</label>
               <div className="inline-control">
                 <input
                   id="bulkBudget"
@@ -1956,10 +1956,10 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="bulkLandingPage">Switch money pages</label>
+              <label htmlFor="bulkLandingPage">切换落地页</label>
               <div className="inline-control">
                 <select id="bulkLandingPage" onChange={(event) => setBulkLandingPageId(event.target.value)} value={bulkLandingPageId}>
-                  <option value="">选择 Money page</option>
+                  <option value="">选择落地页</option>
                   {landingPages.map((row) => (
                     <option key={row.id} value={row.id}>
                       {row.name}
@@ -1977,10 +1977,10 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="bulkOffer">Switch offers</label>
+              <label htmlFor="bulkOffer">切换推广项目</label>
               <div className="inline-control">
                 <select id="bulkOffer" onChange={(event) => setBulkOfferId(event.target.value)} value={bulkOfferId}>
-                  <option value="">选择 Offer</option>
+                  <option value="">选择推广项目</option>
                   {offers.map((row) => (
                     <option key={row.id} value={row.id}>
                       {row.name}
@@ -1998,7 +1998,7 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="bulkOptimizers">Set Optimizers</label>
+              <label htmlFor="bulkOptimizers">设置优化器</label>
               <div className="inline-control">
                 <input id="bulkOptimizers" onChange={(event) => setBulkOptimizerIds(event.target.value)} value={bulkOptimizerIds} />
                 <button
@@ -2012,7 +2012,7 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="bulkAssistants">Link AI Assistants</label>
+              <label htmlFor="bulkAssistants">关联 AI 助手</label>
               <div className="inline-control">
                 <input id="bulkAssistants" onChange={(event) => setBulkAiAssistantIds(event.target.value)} value={bulkAiAssistantIds} />
                 <button
