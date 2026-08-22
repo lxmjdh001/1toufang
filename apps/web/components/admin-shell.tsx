@@ -6,12 +6,11 @@ import {
   IconGallery,
   IconGlobe,
   IconHome,
-  IconLanguage,
   IconSearch,
   IconSend,
   IconSetting
 } from "@douyinfe/semi-icons";
-import { Avatar, Button, Spin } from "@douyinfe/semi-ui-19";
+import { Avatar, Spin } from "@douyinfe/semi-ui-19";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { apiRequest, clearAuthTokens, getAccessToken } from "../lib/api";
@@ -21,6 +20,7 @@ type AdminShellProps = {
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
+  pageMode?: "default" | "dashboard";
 };
 
 type Me = {
@@ -325,7 +325,7 @@ function isPeerSubmenuActive(href: string, pathname: string) {
   return false;
 }
 
-export function AdminShell({ title, description, actions, children }: AdminShellProps) {
+export function AdminShell({ title, description, actions, children, pageMode = "default" }: AdminShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(() => getCachedMe(getAccessToken()));
@@ -336,6 +336,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   const [searching, setSearching] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsAcknowledged, setNotificationsAcknowledged] = useState(false);
   const [language, setLanguage] = useState("ZH");
 
@@ -502,6 +503,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
       )
     }))
     .filter((group) => group.items.length > 0);
+  const showSubmenu = pageMode !== "dashboard" && activeSectionKey !== "workspace" && visibleSubmenuGroups.length > 0;
 
   if (!authChecked && !me) {
     return (
@@ -539,12 +541,8 @@ export function AdminShell({ title, description, actions, children }: AdminShell
             </button>
           ))}
         </nav>
-        <div className="peer-global-spacer" />
-      </header>
-      <div className="peer-admin-main">
-        <header className="semi-admin-header">
-          <div className="semi-admin-header-left">
-            <form className="global-search" onSubmit={submitSearch}>
+        <div className="peer-header-tools">
+          <form className="global-search peer-global-search" onSubmit={submitSearch}>
               <IconSearch />
               <input
                 aria-label="全局搜索"
@@ -553,7 +551,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
                 onFocus={() => {
                   if (searchTerm.trim()) setSearchOpen(true);
                 }}
-                placeholder="搜索投放计划 / 账户 / 素材"
+                placeholder="搜索"
                 value={searchTerm}
               />
               {searching ? <span className="global-search-status">搜索中</span> : null}
@@ -580,78 +578,88 @@ export function AdminShell({ title, description, actions, children }: AdminShell
                   )}
                 </div>
               ) : null}
-            </form>
-          </div>
-          <div className="semi-admin-header-right">
-            <button className="header-tool language-tool" onClick={toggleLanguage} title="语言切换" type="button">
-              <IconLanguage />
-              <span>{language}</span>
+          </form>
+          <button className="header-tool language-tool" onClick={toggleLanguage} title={`语言：${language}`} type="button">
+              <IconGlobe />
               <IconChevronDown />
+          </button>
+          <div className="notification-wrap">
+            <button
+              className="header-tool icon-tool"
+              onClick={() => {
+                setNotificationOpen((current) => !current);
+                setAccountOpen(false);
+                setNotificationsAcknowledged(true);
+              }}
+              title="通知"
+              type="button"
+            >
+              <IconBell />
+              {unreadCount ? <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
             </button>
-            <div className="notification-wrap">
-              <button
-                className="header-tool icon-tool"
-                onClick={() => {
-                  setNotificationOpen((current) => !current);
-                  setNotificationsAcknowledged(true);
-                }}
-                title="通知"
-                type="button"
-              >
-                <IconBell />
-                {unreadCount ? <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
-              </button>
-              {notificationOpen ? (
-                <div className="notification-popover">
-                  <div className="notification-head">
-                    <strong>通知</strong>
-                    <button onClick={() => setNotificationsAcknowledged(true)} type="button">
-                      全部已读
-                    </button>
-                  </div>
-                  <div className="notification-list">
-                    {notifications.length ? (
-                      notifications.map((item) => (
-                        <button
-                          className={`notification-item ${item.severity}`}
-                          key={item.id}
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            setNotificationOpen(false);
-                            if (item.actionHref) router.push(item.actionHref);
-                          }}
-                          type="button"
-                        >
-                          <strong>{item.title}</strong>
-                          <span>{item.message}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="notification-empty">暂无通知</div>
-                    )}
-                  </div>
+            {notificationOpen ? (
+              <div className="notification-popover">
+                <div className="notification-head">
+                  <strong>通知</strong>
+                  <button onClick={() => setNotificationsAcknowledged(true)} type="button">
+                    全部已读
+                  </button>
                 </div>
-              ) : null}
-            </div>
-            <div className="semi-admin-account">
+                <div className="notification-list">
+                  {notifications.length ? (
+                    notifications.map((item) => (
+                      <button
+                        className={`notification-item ${item.severity}`}
+                        key={item.id}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          setNotificationOpen(false);
+                          if (item.actionHref) router.push(item.actionHref);
+                        }}
+                        type="button"
+                      >
+                        <strong>{item.title}</strong>
+                        <span>{item.message}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="notification-empty">暂无通知</div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="peer-account-wrap">
+            <button
+              aria-expanded={accountOpen}
+              className="peer-account-button"
+              onClick={() => {
+                setAccountOpen((current) => !current);
+                setNotificationOpen(false);
+              }}
+              title={`${accountName} / ${teamName}${roleName ? ` / ${roleName}` : ""}`}
+              type="button"
+            >
               <Avatar size="small" color="blue">
                 {accountName.slice(0, 1).toUpperCase()}
               </Avatar>
-              <div>
+            </button>
+            {accountOpen ? (
+              <div className="peer-account-popover">
                 <strong>{accountName}</strong>
                 <span>
                   {teamName}
                   {roleName ? ` / ${roleName}` : ""}
                   {currentEmployee?.employeeNo ? ` / ${currentEmployee.employeeNo}` : ""}
                 </span>
+                <button onClick={logout} type="button">退出登录</button>
               </div>
-            </div>
-            <Button theme="borderless" onClick={logout} type="tertiary">
-              退出登录
-            </Button>
+            ) : null}
           </div>
-        </header>
-        <main className="admin-content semi-admin-content">
+        </div>
+      </header>
+      <main className={`admin-content semi-admin-content ${pageMode === "dashboard" ? "peer-dashboard-content" : ""}`}>
+        {pageMode !== "dashboard" ? (
           <div className="peer-breadcrumb">
             <button onClick={() => router.push("/dashboard")} type="button">控制台</button>
             <span>/</span>
@@ -659,6 +667,7 @@ export function AdminShell({ title, description, actions, children }: AdminShell
             <span>/</span>
             <strong>{title}</strong>
           </div>
+        ) : null}
           <div className="page-heading semi-page-heading">
             <div>
               <h1>{title}</h1>
@@ -666,8 +675,8 @@ export function AdminShell({ title, description, actions, children }: AdminShell
             </div>
             {actions ? <div className="page-actions">{actions}</div> : null}
           </div>
-          <div className={`peer-page-layout ${visibleSubmenuGroups.length ? "" : "without-submenu"}`}>
-            {visibleSubmenuGroups.length ? (
+          <div className={`peer-page-layout ${showSubmenu ? "" : "without-submenu"}`}>
+            {showSubmenu ? (
               <aside aria-label="页面导航" className="peer-submenu">
                 {visibleSubmenuGroups.map((group, index) => (
                   <div className="peer-submenu-group" key={`${group.label ?? "group"}-${index}`}>
@@ -698,7 +707,6 @@ export function AdminShell({ title, description, actions, children }: AdminShell
             <section className="peer-page-content">{children}</section>
           </div>
         </main>
-      </div>
     </div>
   );
 }

@@ -151,6 +151,11 @@ function formatCurrency(value: number, currency = "USD") {
   }).format(value);
 }
 
+function formatDashboardMoney(value: number, currency = "USD") {
+  if (currency === "USD") return `$${value.toFixed(2)}`;
+  return `${currency} ${value.toFixed(2)}`;
+}
+
 function formatPercent(value: number) {
   return `${value.toFixed(2)}%`;
 }
@@ -180,6 +185,13 @@ export default function DashboardPage() {
   const spendSeries = dashboard?.spendSeries.length ? dashboard.spendSeries : (overview?.series ?? []);
   const maxDailySpend = Math.max(...(spendSeries.map((row) => row.spend) ?? [0]), 1);
   const maxPlatformSpend = Math.max(...(overview?.platformBreakdown.map((row) => row.spend) ?? [0]), 1);
+  const chartPoints = spendSeries
+    .map((row, index) => {
+      const x = spendSeries.length > 1 ? (index / (spendSeries.length - 1)) * 1000 : 500;
+      const y = 220 - (row.spend / maxDailySpend) * 180;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   async function load() {
     setLoading(true);
@@ -250,160 +262,90 @@ export default function DashboardPage() {
 
   return (
     <AdminShell
+      pageMode="dashboard"
       title="控制面板"
-      description="账户余额、广告消耗、访客数据和渠道同步状态。"
       actions={
-        <div className="dashboard-actions">
-          <label>
-            开始
-            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-          </label>
-          <label>
-            结束
-            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-          </label>
-          <button className="button secondary" onClick={load} type="button">
-            刷新
-          </button>
-          <a className="button primary" href="/integrations?platform=META">
-            连接 Facebook
-          </a>
-          <button className="button primary" disabled={syncing} onClick={syncOfficial} type="button">
-            {syncing ? "同步中..." : "同步官方数据"}
-          </button>
-        </div>
+        <a className="button primary peer-connect-button" href="/integrations?platform=META">
+          Connect facebook
+        </a>
       }
     >
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="metric-grid control-metrics dashboard-metrics">
+      <section className="metric-grid control-metrics dashboard-metrics dashboard-overview-grid">
         <div className="metric metric-strong">
-          <span>钱包余额</span>
-          <strong>{dashboard ? formatCurrency(dashboard.wallet.balance, dashboard.wallet.currency) : loading ? "..." : "-"}</strong>
-          <small>{dashboard?.wallet.status === "not_configured" ? "钱包尚未开通" : "可用余额"}</small>
+          <span>钱包</span>
+          <strong>{dashboard ? formatDashboardMoney(dashboard.wallet.balance, dashboard.wallet.currency) : loading ? "..." : "-"}</strong>
+          <small>钱包余额</small>
         </div>
         <div className="metric">
-          <span>广告户余额</span>
+          <span>余额</span>
           <strong>
             {dashboard
-              ? formatCurrency(dashboard.adAccountBalance.balance, dashboard.adAccountBalance.currency)
+              ? formatDashboardMoney(dashboard.adAccountBalance.balance, dashboard.adAccountBalance.currency)
               : loading
                 ? "..."
                 : "-"}
           </strong>
-          <small>{dashboard ? `${dashboard.adAccountBalance.accountCount} 个广告账户` : "官方账户余额"}</small>
+          <small>广告户余额</small>
         </div>
         <div className="metric">
-          <span>广告户消耗</span>
+          <span>消耗</span>
           <strong>
             {dashboard
-              ? formatCurrency(dashboard.adAccountSpend.spend, dashboard.adAccountSpend.currency)
+              ? formatDashboardMoney(dashboard.adAccountSpend.spend, dashboard.adAccountSpend.currency)
               : loading
                 ? "..."
                 : "-"}
           </strong>
-          <small>
-            {dashboard?.range.startDate ?? startDate} - {dashboard?.range.endDate ?? endDate}
-          </small>
+          <small>广告户消耗</small>
         </div>
         <div className="metric">
-          <span>访客总数</span>
+          <span>访客</span>
           <strong>{dashboard ? formatNumber(dashboard.visitors.total) : loading ? "..." : "-"}</strong>
-          <small>{dashboard?.visitors.status === "tracking_not_configured" ? "暂无追踪数据" : "落地页访客"}</small>
+          <small>访客总数</small>
         </div>
       </section>
-
-      <section className="metric-grid dashboard-metrics">
-        <div className="metric">
-          <span>总消耗</span>
-          <strong>{overview ? formatCurrency(overview.totals.spend) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>曝光</span>
-          <strong>{overview ? formatNumber(overview.totals.impressions) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>点击</span>
-          <strong>{overview ? formatNumber(overview.totals.clicks) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>转化</span>
-          <strong>{overview ? formatNumber(overview.totals.conversions) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>CTR</span>
-          <strong>{overview ? formatPercent(overview.totals.ctr) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>CPC</span>
-          <strong>{overview ? formatCurrency(overview.totals.cpc) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>CPA</span>
-          <strong>{overview ? formatCurrency(overview.totals.cpa) : loading ? "..." : "-"}</strong>
-        </div>
-        <div className="metric">
-          <span>ROAS</span>
-          <strong>{overview ? overview.totals.roas.toFixed(2) : loading ? "..." : "-"}</strong>
-        </div>
-      </section>
-
-      <section className="split-grid">
-        <div className="panel dashboard-panel">
-          <div className="panel-heading">
-            <h2>Spend Chart 消耗趋势</h2>
-            <span className="muted">
-              {dashboard?.range.startDate ?? overview?.range.startDate ?? startDate} -{" "}
-              {dashboard?.range.endDate ?? overview?.range.endDate ?? endDate}
-            </span>
+      <section className="dashboard-peer-lower-grid">
+        <div className="panel dashboard-panel dashboard-chart-panel">
+          <div className="panel-heading dashboard-peer-panel-heading">
+            <h2>Spend Chart</h2>
           </div>
-          <div className="mini-chart">
-            {spendSeries.length ? (
-              spendSeries.map((row) => (
-                <div className="bar-row" key={row.date}>
-                  <span>{row.date.slice(5)}</span>
-                  <div className="bar-track">
-                    <i style={{ width: `${Math.max((row.spend / maxDailySpend) * 100, row.spend ? 4 : 0)}%` }} />
-                  </div>
-                  <strong>{formatCurrency(row.spend)}</strong>
-                </div>
-              ))
-            ) : (
-              <div className="empty-state">暂无报表数据</div>
-            )}
-          </div>
-        </div>
-
-        <div className="panel dashboard-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>自动化日志</h2>
-              <p>集中查看策略任务、报表同步和投放发布的执行记录。</p>
+          <div className="dashboard-chart" aria-label="Spend Chart 消耗趋势">
+            <div className="dashboard-chart-y-axis" aria-hidden="true">
+              <span>1.0</span><span>0.8</span><span>0.6</span><span>0.4</span><span>0.2</span><span>0</span>
             </div>
-            <a className="button secondary" href="/strategies">
-              策略管理
-            </a>
+            <div className="dashboard-chart-plot">
+              {[0, 1, 2, 3, 4, 5].map((line) => <i key={line} style={{ top: `${line * 20}%` }} />)}
+              {chartPoints ? (
+                <svg aria-hidden="true" preserveAspectRatio="none" viewBox="0 0 1000 240">
+                  <polyline fill="none" points={chartPoints} stroke="var(--primary)" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+                </svg>
+              ) : null}
+            </div>
           </div>
-          <div className="ai-log-list" id="ai-logs">
+        </div>
+
+        <div className="panel dashboard-panel dashboard-ai-panel">
+          <div className="dashboard-ai-empty" id="ai-logs">
             {dashboard?.aiLogs.length ? (
-              dashboard.aiLogs.map((log) => (
-                <div className="ai-log-item" key={log.id}>
-                  <span className={`pill ${log.status}`}>{log.status}</span>
-                  <div>
-                    <strong>{log.title}</strong>
-                    <small>{log.message}</small>
+              <div className="ai-log-list">
+                {dashboard.aiLogs.map((log) => (
+                  <div className="ai-log-item" key={log.id}>
+                    <span className={`pill ${log.status}`}>{log.status}</span>
+                    <div><strong>{log.title}</strong><small>{log.message}</small></div>
+                    <time>{formatDateTime(log.createdAt)}</time>
                   </div>
-                  <time>{formatDateTime(log.createdAt)}</time>
-                </div>
-              ))
-            ) : (
-              <div className="empty-state compact-empty">
-                <div>
-                  <strong>暂无自动化日志</strong>
-                  <span>策略或同步任务执行后，记录会显示在这里。</span>
-                </div>
+                ))}
               </div>
+            ) : (
+              <>
+                <span className="dashboard-ai-icon" aria-hidden="true" />
+                <strong>没有AI助手日志</strong>
+                <p>当AI助手处理信息时，记录会显示在这里。</p>
+                <a className="button primary" href="/copilot">创建AI助手</a>
+              </>
             )}
           </div>
         </div>
