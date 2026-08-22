@@ -515,6 +515,12 @@ button:disabled {
   margin-top: 0;
 }
 
+/* Resource pages follow the peer list pattern. The dashboard keeps its own
+   overview cards through the explicit dashboard-overview-grid class. */
+.peer-page-content > .metric-grid:not(.dashboard-overview-grid) {
+  display: none;
+}
+
 .semi-admin-nav .semi-navigation-sub-title:focus-visible,
 .semi-admin-nav .semi-navigation-item:focus-visible {
   outline: 2px solid rgb(96 165 250 / 72%);
