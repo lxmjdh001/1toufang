@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdminShell } from "../../../components/admin-shell";
 import { apiRequest } from "../../../lib/api";
@@ -198,6 +198,7 @@ function FacebookChannelPageContent() {
     if (typeof window === "undefined") return "ad_accounts";
     return new URLSearchParams(window.location.search).get("resource") ?? "ad_accounts";
   });
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -209,7 +210,15 @@ function FacebookChannelPageContent() {
   const [accountPageSize, setAccountPageSize] = useState(20);
 
   const overview = data?.overview;
-  const accountRows = data?.accounts ?? [];
+  const accountRows = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return (data?.accounts ?? []).filter((row) => {
+      if (!keyword) return true;
+      return [row.name, row.accountId, row.user, row.partner, row.billing].some((value) =>
+        String(value ?? "").toLowerCase().includes(keyword)
+      );
+    });
+  }, [data?.accounts, search]);
   const resources = data?.resources ?? [];
   const activeResourceLabel = resourceLabels[resource] ?? "资源";
   const visibleStatusViews = (data?.statusViews ?? []).filter(
@@ -422,46 +431,20 @@ function FacebookChannelPageContent() {
 
   return (
     <AdminShell
-      title="Facebook 渠道"
-      description="管理 Facebook 授权、广告账户、BM、主页、像素、合规监控与回收队列。"
+      title="广告帐户"
+      breadcrumbs={[{ label: "Facebook", href: "/channels/facebook" }, { label: "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={() => void connectFacebook()} type="button">
-            Facebook 授权
-          </button>
-          <button className="button secondary" disabled={syncing} onClick={() => void syncAssets()} type="button">
-            {syncing ? "同步中..." : "同步资源"}
-          </button>
+          <button className="button secondary" type="button">充值</button>
           <button className="button secondary" onClick={downloadReport} type="button">
-            下载报表
+            Download Report
           </button>
           <button className="button secondary" onClick={exportAccounts} type="button">
-            导出账户
+            Export
           </button>
         </div>
       }
     >
-      <section className="metric-grid compact-metrics facebook-channel-metrics">
-        <div className="metric metric-strong">
-          <span>钱包余额</span>
-          <strong>{formatMoney(overview?.walletBalance)}</strong>
-        </div>
-        <div className="metric">
-          <span>广告户余额</span>
-          <strong>{formatMoney(overview?.accountBalance)}</strong>
-        </div>
-        <div className="metric">
-          <span>广告户消耗</span>
-          <strong>{formatMoney(overview?.spend)}</strong>
-          <small>总消耗 {formatMoney(overview?.totalSpend)}</small>
-        </div>
-        <div className="metric">
-          <span>封户率</span>
-          <strong>{formatMoney(overview?.sealedRate)}%</strong>
-          <small>待回收 {overview?.pendingRecycle ?? 0} / 账户 {overview?.accounts ?? 0}</small>
-        </div>
-      </section>
-
       {loading ? <div className="notice success">加载中...</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
@@ -499,7 +482,7 @@ function FacebookChannelPageContent() {
         </div>
       ) : null}
 
-      <section className="channel-toolbar facebook-channel-toolbar" aria-label="Facebook 渠道筛选">
+      <section className="channel-toolbar peer-resource-toolbar facebook-channel-toolbar" aria-label="Facebook 渠道筛选">
         <div className="channel-filter-strip">
           <div className="channel-filter-group channel-status-filter">
             <span className="channel-filter-label">状态</span>
@@ -517,20 +500,17 @@ function FacebookChannelPageContent() {
               ))}
             </div>
           </div>
-          <label className="channel-resource-select">
-            <span>资源</span>
-            <select onChange={(event) => changeResource(event.target.value)} value={resource}>
-              {(data?.resourceTabs ?? []).map((tab) => (
-                <option key={tab.key} value={tab.key}>
-                  {tab.label}
-                </option>
-              ))}
-            </select>
+          <label className="channel-search-field">
+            <span>搜索</span>
+            <input onChange={(event) => setSearch(event.target.value)} placeholder="搜索" value={search} />
           </label>
+          <button className="button secondary" type="button">筛选 0</button>
+          <button className="button secondary" type="button">切换显示字段</button>
         </div>
       </section>
 
-      <section className="table-panel channel-table-panel">
+      {resource === "ad_accounts" ? (
+        <section className="table-panel channel-table-panel">
         <div className="table-header">
           <div>
             <strong>广告账户</strong>
@@ -681,8 +661,10 @@ function FacebookChannelPageContent() {
           </div>
         </div>
       </section>
+      ) : null}
 
-      <section className="table-panel">
+      {resource !== "ad_accounts" ? (
+        <section className="table-panel">
         <div className="table-header">
           <div>
             <strong>{activeResourceLabel}</strong>
@@ -724,6 +706,7 @@ function FacebookChannelPageContent() {
           </tbody>
         </table>
       </section>
+      ) : null}
     </AdminShell>
   );
 }

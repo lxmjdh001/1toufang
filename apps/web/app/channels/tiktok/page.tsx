@@ -122,6 +122,7 @@ function TikTokChannelPageContent() {
   });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -283,49 +284,12 @@ function TikTokChannelPageContent() {
 
   return (
     <AdminShell
-      title="TikTok 渠道"
-      description="管理 TikTok 授权、广告主、商务中心、Catalog、Feed、商品和 App。"
+      title="账户"
+      breadcrumbs={[{ label: "Tiktok", href: "/channels/tiktok" }, { label: "Account", href: "/channels/tiktok?resource=accounts" }, { label: "列表" }]}
       actions={
-        <div className="button-row">
-          <button className="button primary" onClick={() => void connectTikTok()} type="button">
-            TikTok 授权
-          </button>
-          <button className="button secondary" disabled={syncing} onClick={() => void syncAssets()} type="button">
-            {syncing ? "同步中..." : "同步资源"}
-          </button>
-          <button className="button secondary" onClick={() => void load()} type="button">
-            刷新
-          </button>
-          <button className="button secondary" onClick={exportResources} type="button">
-            导出资源
-          </button>
-        </div>
+        <button className="button primary" onClick={() => void connectTikTok()} type="button">Connect TikTok</button>
       }
     >
-      <section className="metric-grid compact-metrics">
-        <div className="metric metric-strong">
-          <span>账号</span>
-          <strong>{formatNumber(overview?.accounts)}</strong>
-        </div>
-        <div className="metric">
-          <span>广告主</span>
-          <strong>{formatNumber(overview?.advertisers)}</strong>
-        </div>
-        <div className="metric">
-          <span>Catalog / Feed / 商品</span>
-          <strong>
-            {formatNumber(overview?.catalogs)} / {formatNumber(overview?.feeds)} / {formatNumber(overview?.products)}
-          </strong>
-        </div>
-        <div className="metric">
-          <span>App / 任务</span>
-          <strong>
-            {formatNumber(overview?.apps)} / {formatNumber(overview?.tasks)}
-          </strong>
-          <small>投放计划 {formatNumber(overview?.campaigns)}</small>
-        </div>
-      </section>
-
       {loading ? <div className="notice success">加载中...</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
@@ -363,35 +327,27 @@ function TikTokChannelPageContent() {
         </div>
       ) : null}
 
-      <section className="channel-toolbar facebook-channel-toolbar" aria-label="TikTok 渠道筛选">
+      <section className="channel-toolbar peer-resource-toolbar" aria-label="TikTok 渠道筛选">
         <div className="channel-filter-strip">
-          <label className="channel-resource-select compact-channel-select">
-            <span>资源</span>
-            <select onChange={(event) => changeResource(event.target.value)} value={resource}>
-              {(data?.resourceTabs ?? []).map((tab) => (
-                <option key={tab.key} value={tab.key}>
-                  {resourceLabels[tab.key] ?? tab.label}（{tab.count}）
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="channel-resource-select compact-channel-select">
-            <span>状态</span>
-            <select
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setResourcePage(1);
-              }}
-              value={status}
-            >
-              <option value="">全部状态</option>
-              {statusOptions.map((item) => (
-                <option key={item} value={item}>
-                  {statusLabel(item)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {showFilters ? (
+            <label className="channel-resource-select compact-channel-select">
+              <span>状态</span>
+              <select
+                onChange={(event) => {
+                  setStatus(event.target.value);
+                  setResourcePage(1);
+                }}
+                value={status}
+              >
+                <option value="">全部状态</option>
+                {statusOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {statusLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label className="channel-search-field">
             <span>搜索</span>
             <input
@@ -404,6 +360,10 @@ function TikTokChannelPageContent() {
               value={search}
             />
           </label>
+          <button className="button secondary" onClick={() => setShowFilters((current) => !current)} type="button">
+            筛选 {status ? 1 : 0}
+          </button>
+          <button className="button secondary" type="button">切换显示字段</button>
         </div>
       </section>
 
@@ -452,7 +412,7 @@ function TikTokChannelPageContent() {
               ))}
               {resources.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={8}>暂无 TikTok 资源</td>
+                  <td colSpan={8}>没有 {activeResourceLabel}</td>
                 </tr>
               ) : null}
             </tbody>

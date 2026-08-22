@@ -21,6 +21,7 @@ type AdminShellProps = {
   actions?: ReactNode;
   children: ReactNode;
   pageMode?: "default" | "dashboard";
+  breadcrumbs?: Array<{ label: string; href?: string }>;
 };
 
 type Me = {
@@ -221,13 +222,23 @@ const peerSubmenus: Record<string, PeerSubmenuGroup[]> = {
   campaigns: [{ items: [{ label: "广告系列", href: "/campaigns", permissions: ["campaigns.create"] }] }],
   channels: [
     {
-      label: "Facebook",
+      label: "资源",
       items: [
         { label: "广告账户", href: "/channels/facebook?resource=ad_accounts", permissions: ["ad_accounts.view"] },
-        { label: "商务管理平台", href: "/channels/facebook?resource=business_managers", permissions: ["ad_accounts.view"] },
+        { label: "组", href: "/channels/facebook?resource=groups", permissions: ["ad_accounts.view"] },
+        { label: "BM", href: "/channels/facebook?resource=business_managers", permissions: ["ad_accounts.view"] },
+        { label: "账户", href: "/channels/facebook?resource=accounts", permissions: ["ad_accounts.view"] },
         { label: "主页", href: "/channels/facebook?resource=pages", permissions: ["ad_accounts.view"] },
         { label: "像素", href: "/channels/facebook?resource=pixels", permissions: ["ad_accounts.view"] },
-        { label: "应用", href: "/channels/facebook?resource=apps", permissions: ["ad_accounts.view"] }
+        { label: "表单", href: "/channels/facebook?resource=forms", permissions: ["ad_accounts.view"] },
+        { label: "应用", href: "/channels/facebook?resource=apps", permissions: ["ad_accounts.view"] },
+        { label: "任务", href: "/channels/facebook?resource=tasks", permissions: ["ad_accounts.view"] }
+      ]
+    },
+    {
+      label: "安全",
+      items: [
+        { label: "规则", href: "/channels/facebook?resource=safety_rules", permissions: ["ad_accounts.view"] }
       ]
     },
     {
@@ -243,7 +254,7 @@ const peerSubmenus: Record<string, PeerSubmenuGroup[]> = {
       ]
     },
     {
-      label: "资产",
+      label: "管理",
       items: [
         { label: "渠道授权", href: "/integrations", permissions: ["ad_accounts.view"] },
         { label: "广告账户总览", href: "/ad-accounts", permissions: ["ad_accounts.view"] },
@@ -325,7 +336,7 @@ function isPeerSubmenuActive(href: string, pathname: string) {
   return false;
 }
 
-export function AdminShell({ title, description, actions, children, pageMode = "default" }: AdminShellProps) {
+export function AdminShell({ title, description, actions, children, pageMode = "default", breadcrumbs }: AdminShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(() => getCachedMe(getAccessToken()));
@@ -495,7 +506,19 @@ export function AdminShell({ title, description, actions, children, pageMode = "
   const visibleMainNav = peerMainNav.filter(
     (item) => !item.permissions || item.permissions.every((permission) => grantedPermissions.has(permission))
   );
-  const visibleSubmenuGroups = (peerSubmenus[activeSectionKey] ?? [])
+  const routeScopedSubmenus =
+    activeSectionKey === "channels"
+      ? (peerSubmenus.channels ?? [])
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => {
+              const itemPath = hrefPath(item.href);
+              return itemPath === pathname || !["/channels/facebook", "/channels/tiktok"].includes(itemPath);
+            })
+          }))
+          .filter((group) => group.items.length > 0)
+      : peerSubmenus[activeSectionKey] ?? [];
+  const visibleSubmenuGroups = routeScopedSubmenus
     .map((group) => ({
       ...group,
       items: group.items.filter(
@@ -661,11 +684,16 @@ export function AdminShell({ title, description, actions, children, pageMode = "
       <main className={`admin-content semi-admin-content ${pageMode === "dashboard" ? "peer-dashboard-content" : ""}`}>
         {pageMode !== "dashboard" ? (
           <div className="peer-breadcrumb">
-            <button onClick={() => router.push("/dashboard")} type="button">控制台</button>
-            <span>/</span>
-            <span>{peerMainNav.find((item) => item.key === activeSectionKey)?.label ?? "工作区"}</span>
-            <span>/</span>
-            <strong>{title}</strong>
+            {(breadcrumbs ?? [
+              { label: "控制台", href: "/dashboard" },
+              { label: peerMainNav.find((item) => item.key === activeSectionKey)?.label ?? "工作区" },
+              { label: title }
+            ]).map((item, index, items) => (
+              <span className="peer-breadcrumb-item" key={`${item.label}-${index}`}>
+                {item.href ? <button onClick={() => router.push(item.href ?? "#")} type="button">{item.label}</button> : <strong>{item.label}</strong>}
+                {index < items.length - 1 ? <span>/</span> : null}
+              </span>
+            ))}
           </div>
         ) : null}
           <div className="page-heading semi-page-heading">

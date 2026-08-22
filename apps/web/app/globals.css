@@ -394,6 +394,11 @@ button:disabled {
   margin-bottom: 10px;
 }
 
+.peer-breadcrumb-item {
+  align-items: center;
+  display: contents;
+}
+
 .peer-breadcrumb button {
   background: transparent;
   border: 0;
@@ -3824,6 +3829,35 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
 }
 
+.workspace-peer-list {
+  display: block;
+}
+
+.workspace-peer-list .workspace-table-panel {
+  border-radius: 10px;
+}
+
+.workspace-peer-list .workspace-editor {
+  margin-top: 16px;
+  position: static;
+}
+
+.workspace-peer-list .table-header {
+  min-height: 64px;
+  padding: 14px 16px;
+}
+
+.workspace-peer-list .workspace-toolbar input,
+.workspace-peer-list .workspace-toolbar select {
+  height: 38px;
+}
+
+.workspace-peer-list .workspace-table th,
+.workspace-peer-list .workspace-table td {
+  font-size: 13px;
+  padding: 12px 14px;
+}
+
 .workspace-metrics .metric {
   min-height: 104px;
   padding: 14px 16px;
@@ -4690,6 +4724,152 @@ tbody tr:hover {
 .dashboard-ai-empty .button {
   min-height: 54px;
   padding: 0 24px;
+}
+
+.campaign-board {
+  margin-top: 8px;
+}
+
+.campaign-toolbar {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+}
+
+.campaign-toolbar-controls {
+  align-items: center;
+  gap: 8px;
+}
+
+.campaign-toolbar-controls .campaign-search-field {
+  order: 2;
+}
+
+.campaign-toolbar-controls .campaign-search-field label,
+.campaign-toolbar-controls .compact-field label {
+  font-size: 12px;
+}
+
+.campaign-toolbar-controls .compact-field {
+  min-width: 150px;
+}
+
+.campaign-toolbar-controls .button {
+  min-height: 38px;
+}
+
+.campaign-board .status-tabs {
+  flex: 1 1 auto;
+}
+
+.campaign-board .status-tab {
+  min-height: 38px;
+}
+
+.bulk-panel-hidden {
+  display: none;
+}
+
+.campaign-create-panel {
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.campaign-create-panel > .panel-heading h2 {
+  font-size: 24px;
+}
+
+.campaign-create-panel > .panel-heading p {
+  margin-bottom: 0;
+}
+
+.campaign-create-panel .form-grid {
+  gap: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.campaign-create-panel .campaign-name-field {
+  grid-column: span 2;
+}
+
+.campaign-create-panel .batch-account-field,
+.campaign-create-panel .ad-setup-field,
+.campaign-create-panel .campaign-notes-field {
+  grid-column: 1 / -1;
+}
+
+.peer-resource-toolbar {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+}
+
+.peer-resource-toolbar .channel-filter-strip {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+
+.peer-resource-toolbar .channel-filter-group {
+  flex: 1 1 auto;
+}
+
+.peer-resource-toolbar .channel-search-field {
+  margin-left: auto;
+  min-width: 220px;
+}
+
+.peer-resource-toolbar .channel-search-field span,
+.peer-resource-toolbar .channel-resource-select > span {
+  font-size: 12px;
+}
+
+.peer-resource-toolbar .status-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.peer-resource-toolbar .status-tab {
+  min-height: 36px;
+}
+
+.peer-resource-toolbar .button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.channel-table-panel .table-header {
+  min-height: 58px;
+}
+
+.campaign-create-panel .batch-account-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .campaign-create-panel .form-grid,
+  .campaign-create-panel .batch-account-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .campaign-create-panel .form-grid,
+  .campaign-create-panel .batch-account-list {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-create-panel .campaign-name-field {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 1280px) {

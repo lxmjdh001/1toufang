@@ -254,20 +254,12 @@ export function WorkspaceRecordPage({
   }
 
   return (
-    <AdminShell title={title} description={description} actions={<button className="button primary" onClick={startCreate} type="button">+ 新建</button>}>
-      <ol className="workspace-flow" aria-label={`${title}使用流程`}>
-        {workflowSteps(module).map((step, index) => <li key={step}><span>{index + 1}</span><strong>{step}</strong></li>)}
-      </ol>
-      <div className="metric-grid compact-metrics workspace-metrics">
-        <div className="metric"><span>全部</span><strong>{rows.length}</strong><small>当前工作区记录</small></div>
-        <div className="metric"><span>已启用</span><strong>{rows.filter((row) => row.status === "active").length}</strong><small>正在执行或可用</small></div>
-        <div className="metric"><span>草稿</span><strong>{rows.filter((row) => row.status === "draft").length}</strong><small>待继续配置</small></div>
-      </div>
+    <AdminShell title={title} actions={<button className="button primary" onClick={startCreate} type="button">创建{title}</button>}>
 
       {error ? <div className="notice error">{error}</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
 
-      <div className="workspace-resource-layout">
+      <div className="workspace-resource-layout workspace-peer-list">
         <section className="table-panel workspace-table-panel">
           <div className="table-header">
             <div><strong>{title}</strong><span className="muted">共 {visibleRows.length} 条</span></div>
@@ -277,6 +269,7 @@ export function WorkspaceRecordPage({
                 <option value="">全部状态</option>
                 {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
+              <button className="button small" type="button">切换显示字段</button>
             </div>
           </div>
           {loading ? <div className="empty-state">正在加载...</div> : pagedRows.length === 0 ? <div className="empty-state">暂无记录，点击右上角新建</div> : (

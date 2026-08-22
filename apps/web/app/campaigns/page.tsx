@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -441,6 +442,8 @@ function createEmptyMetrics(): CampaignMetrics {
 }
 
 export default function CampaignsPage() {
+  const pathname = usePathname();
+  const createMode = pathname.endsWith("/create");
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [adAccounts, setAdAccounts] = useState<AdAccountRow[]>([]);
   const [strategies, setStrategies] = useState<StrategyRow[]>([]);
@@ -1308,43 +1311,16 @@ export default function CampaignsPage() {
 
   return (
     <AdminShell
-      title="Campaign"
-      description="统一管理 Meta 和 TikTok 的 Campaign 创建、投放状态、预算与运营指标。"
-      actions={
-        <div className="button-row">
-          <button className="button secondary" onClick={exportCsv} type="button">
-            导出
-          </button>
-          <button className="button secondary" onClick={() => void load()} type="button">
-            刷新
-          </button>
-        </div>
-      }
+      title={createMode ? "创建 Campaign" : "广告系列"}
+      breadcrumbs={[{ label: "Campaign", href: "/campaigns" }, { label: createMode ? "创建" : "列表" }]}
+      actions={createMode ? null : <a className="button primary" href="/campaigns/create">创建campaign</a>}
     >
-      <section className="metric-grid compact-metrics">
-        <div className="metric metric-strong">
-          <span>总消耗</span>
-          <strong>{formatMoney(summary.spend)}</strong>
-        </div>
-        <div className="metric">
-          <span>曝光</span>
-          <strong>{formatNumber(summary.impressions)}</strong>
-        </div>
-        <div className="metric">
-          <span>点击</span>
-          <strong>{formatNumber(summary.clicks)}</strong>
-        </div>
-        <div className="metric">
-          <span>成效</span>
-          <strong>{formatNumber(summary.result)}</strong>
-          <small>转化 {formatNumber(summary.conversions)} / 效益 {formatMoney(summary.profit)}</small>
-        </div>
-      </section>
-
       {loading ? <div className="notice success">加载中...</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
-      {batchResult ? (
+      {createMode ? (
+        <>
+        {batchResult ? (
         <section className="batch-result-panel">
           <div className="field-panel-heading">
             <div>
@@ -1364,9 +1340,9 @@ export default function CampaignsPage() {
             ))}
           </div>
         </section>
-      ) : null}
+        ) : null}
 
-      <section className="panel">
+      <section className="panel campaign-create-panel">
         <div className="panel-heading">
           <div>
             <h2>新建广告系列</h2>
@@ -1709,8 +1685,10 @@ export default function CampaignsPage() {
           </div>
         </form>
       </section>
+        </>
+      ) : null}
 
-      <section className="campaign-board">
+      {!createMode ? <section className="campaign-board">
         <div className="campaign-toolbar">
           <div className="status-tabs" role="tablist">
             {viewTabs.map((tab) => (
@@ -1880,7 +1858,7 @@ export default function CampaignsPage() {
           </div>
         ) : null}
 
-        <div className="bulk-panel">
+        <div className={`bulk-panel ${selectedCount ? "" : "bulk-panel-hidden"}`}>
           <div>
             <strong>已选择 {selectedCount} 个 Campaign</strong>
             <span>批量发布、启停、预算和内容配置</span>
@@ -2111,7 +2089,7 @@ export default function CampaignsPage() {
             ) : null}
           </table>
         </section>
-      </section>
+      </section> : null}
     </AdminShell>
   );
 }
