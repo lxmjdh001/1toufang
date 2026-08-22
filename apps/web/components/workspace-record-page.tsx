@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "./admin-shell";
 import { apiRequest } from "../lib/api";
 
@@ -129,6 +130,11 @@ export function WorkspaceRecordPage({
   statusOptions = defaultStatuses,
   actions = []
 }: WorkspaceRecordPageProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const basePath = createMode ? pathname.slice(0, -"/create".length) || "/" : pathname;
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<WorkspaceRecord[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -176,7 +182,25 @@ export function WorkspaceRecordPage({
     void load();
   }, [module]);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || editingId) return;
+    if (!editParam) {
+      startCreate();
+      return;
+    }
+    const row = rows.find((item) => item.id === editParam);
+    if (row) startEdit(row);
+  }, [createMode, editParam, editingId, rows]);
+
   function startCreate() {
+    if (!createMode) {
+      router.push(`${basePath}/create`);
+      return;
+    }
     const next: Record<string, string> = { name: "", status: statusOptions[0]?.value ?? "draft" };
     for (const field of fields) next[field.key] = "";
     setEditingId("new");
@@ -186,6 +210,10 @@ export function WorkspaceRecordPage({
   }
 
   function startEdit(row: WorkspaceRecord) {
+    if (!createMode) {
+      router.push(`${basePath}/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     const next: Record<string, string> = { name: row.name, status: row.status };
     for (const field of fields) next[field.key] = valueText(row.config?.[field.key]) === "未设置" ? "" : valueText(row.config?.[field.key]);
     setEditingId(row.id);
@@ -218,6 +246,7 @@ export function WorkspaceRecordPage({
       }
       setEditingId(null);
       await load();
+      if (createMode) router.push(basePath);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "保存失败");
     } finally {
@@ -254,7 +283,12 @@ export function WorkspaceRecordPage({
   }
 
   return (
-    <AdminShell title={title} actions={<button className="button primary" onClick={startCreate} type="button">创建{title}</button>}>
+    <AdminShell
+      title={createMode ? `${editingId === "new" ? "创建" : "编辑"}${title}` : title}
+      description={createMode ? description : undefined}
+      breadcrumbs={[{ label: title, href: basePath }, { label: createMode ? (editingId === "new" ? "创建" : "编辑") : "列表" }]}
+      actions={createMode ? <a className="button secondary" href={basePath}>返回列表</a> : <button className="button primary" onClick={startCreate} type="button">创建{title}</button>}
+    >
 
       {error ? <div className="notice error">{error}</div> : null}
       {notice ? <div className="notice success">{notice}</div> : null}
@@ -293,7 +327,7 @@ export function WorkspaceRecordPage({
           <div className="table-pagination workspace-pagination"><span>第 {page} / {pageCount} 页</span><button className="button small" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} type="button">上一页</button><button className="button small" disabled={page >= pageCount} onClick={() => setPage((current) => current + 1)} type="button">下一页</button></div>
         </section>
 
-        {editingId ? <aside className="panel workspace-editor"><div className="panel-heading"><div><h3>{editingId === "new" ? `新建${title}` : `编辑${title}`}</h3><p>配置保存后会立即对当前团队生效。</p></div><button className="button small" onClick={() => setEditingId(null)} type="button">关闭</button></div><form className="form" onSubmit={save}><label className="field"><span>名称</span><input onChange={(event) => updateDraft("name", event.target.value)} value={draft.name ?? ""} /></label><label className="field"><span>状态</span><select onChange={(event) => updateDraft("status", event.target.value)} value={draft.status ?? "draft"}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{fields.map((field) => <label className="field" key={field.key}><span>{field.label}</span>{field.type === "textarea" ? <textarea onChange={(event) => updateDraft(field.key, event.target.value)} placeholder={field.placeholder} rows={4} value={draft[field.key] ?? ""} /> : field.type === "select" ? <select onChange={(event) => updateDraft(field.key, event.target.value)} value={draft[field.key] ?? ""}><option value="">请选择</option>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input onChange={(event) => updateDraft(field.key, event.target.value)} placeholder={field.placeholder} type={field.type ?? "text"} value={draft[field.key] ?? ""} />}</label>)}<div className="page-actions"><button className="button" onClick={() => setEditingId(null)} type="button">取消</button><button className="button primary" disabled={saving} type="submit">{saving ? "保存中..." : "保存"}</button></div></form></aside> : null}
+        {createMode && editingId ? <aside className="panel workspace-editor"><div className="panel-heading"><div><h3>{editingId === "new" ? `新建${title}` : `编辑${title}`}</h3><p>配置保存后会立即对当前团队生效。</p></div><a className="button small" href={basePath}>关闭</a></div><form className="form" onSubmit={save}><label className="field"><span>名称</span><input onChange={(event) => updateDraft("name", event.target.value)} value={draft.name ?? ""} /></label><label className="field"><span>状态</span><select onChange={(event) => updateDraft("status", event.target.value)} value={draft.status ?? "draft"}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{fields.map((field) => <label className="field" key={field.key}><span>{field.label}</span>{field.type === "textarea" ? <textarea onChange={(event) => updateDraft(field.key, event.target.value)} placeholder={field.placeholder} rows={4} value={draft[field.key] ?? ""} /> : field.type === "select" ? <select onChange={(event) => updateDraft(field.key, event.target.value)} value={draft[field.key] ?? ""}><option value="">请选择</option>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input onChange={(event) => updateDraft(field.key, event.target.value)} placeholder={field.placeholder} type={field.type ?? "text"} value={draft[field.key] ?? ""} />}</label>)}<div className="page-actions"><a className="button" href={basePath}>取消</a><button className="button primary" disabled={saving} type="submit">{saving ? "保存中..." : "保存"}</button></div></form></aside> : null}
       </div>
     </AdminShell>
   );
