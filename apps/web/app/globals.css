@@ -3189,6 +3189,29 @@ button:disabled {
   margin-top: 0;
 }
 
+.report-list-page > .report-summary {
+  display: none;
+}
+
+.report-list-page .analytics-overview-grid {
+  display: block;
+  margin-top: 0;
+}
+
+.report-list-page .analytics-trend-panel {
+  display: none;
+}
+
+.report-list-page .analytics-filter-panel {
+  margin-bottom: 14px;
+}
+
+.report-list-page .table-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
 .strategy-table-panel {
   margin-top: 14px;
 }

@@ -175,7 +175,8 @@ export default function ConversionsPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className="report-list-page conversions-page">
+      <section className="metric-grid compact-metrics report-summary">
         <div className="metric metric-strong">
           <span>转化总数</span>
           <strong>{rows.length}</strong>
@@ -235,6 +236,7 @@ export default function ConversionsPage() {
             <br />
             <span className="muted">最多展示最近 500 条记录</span>
           </div>
+          <button className="button small" type="button">切换显示字段</button>
         </div>
         <table className="conversion-table">
           <thead>
@@ -290,6 +292,7 @@ export default function ConversionsPage() {
           </tbody>
         </table>
       </section>
+      </div>
     </AdminShell>
   );
 }

@@ -193,7 +193,8 @@ export default function AnalyticsPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className="report-list-page analytics-page">
+      <section className="metric-grid compact-metrics report-summary">
         <div className="metric metric-strong">
           <span>访客总数</span>
           <strong>{formatNumber(overview?.totals.visitors)}</strong>
@@ -215,8 +216,8 @@ export default function AnalyticsPage() {
       {loading ? <div className="notice success">加载中...</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="split-grid">
-        <div className="panel dashboard-panel">
+      <section className="split-grid analytics-overview-grid">
+        <div className="panel dashboard-panel analytics-trend-panel">
           <div className="panel-heading">
             <div>
               <h2>访客趋势</h2>
@@ -238,7 +239,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="panel dashboard-panel">
+        <div className="panel dashboard-panel analytics-filter-panel">
           <div className="panel-heading">
             <div>
               <h2>筛选</h2>
@@ -283,6 +284,7 @@ export default function AnalyticsPage() {
             <br />
             <span className="muted">最多展示最近 500 条记录</span>
           </div>
+          <button className="button small" type="button">切换显示字段</button>
         </div>
         <table className="analytics-table">
           <thead>
@@ -344,6 +346,7 @@ export default function AnalyticsPage() {
           </tbody>
         </table>
       </section>
+      </div>
     </AdminShell>
   );
 }
