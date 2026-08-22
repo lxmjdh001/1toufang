@@ -3189,6 +3189,73 @@ button:disabled {
   margin-top: 0;
 }
 
+.landing-page-resource.is-list > .landing-summary,
+.offer-resource-page.is-list > .offer-summary,
+.domain-resource-page.is-list > .domain-summary,
+.pwa-resource-page.is-list > .pwa-summary,
+.demand-resource-page.is-list > .demand-summary {
+  display: none;
+}
+
+.landing-page-resource.is-list > .landing-create-panel,
+.offer-resource-page.is-list > .offer-create-panel,
+.domain-resource-page.is-list > .domain-create-panel,
+.pwa-resource-page.is-list > .pwa-create-panel,
+.demand-resource-page.is-list > .demand-create-panel,
+.offer-resource-page.is-list > .offer-network-panel {
+  display: none;
+}
+
+.landing-page-resource.is-create > .landing-list-layout,
+.offer-resource-page.is-create > .offer-list-layout,
+.domain-resource-page.is-create > .domain-filter-panel,
+.domain-resource-page.is-create > .domain-list-layout,
+.pwa-resource-page.is-create > .pwa-filter-panel,
+.pwa-resource-page.is-create > .pwa-list-layout,
+.demand-resource-page.is-create > .demand-status-tabs,
+.demand-resource-page.is-create > .demand-list-layout {
+  display: none;
+}
+
+.offer-resource-page.is-create > .offer-network-panel {
+  margin-top: 0;
+}
+
+.offer-resource-page.is-create > .offer-view-tabs {
+  display: none;
+}
+
+.landing-page-resource.is-list > .landing-list-layout,
+.offer-resource-page.is-list > .offer-list-layout,
+.domain-resource-page.is-list > .domain-list-layout,
+.pwa-resource-page.is-list > .pwa-list-layout,
+.demand-resource-page.is-list > .demand-list-layout {
+  margin-top: 0;
+}
+
+.landing-page-resource.is-list .money-page-detail-panel,
+.offer-resource-page.is-list .money-page-detail-panel,
+.domain-resource-page.is-list .money-page-detail-panel,
+.pwa-resource-page.is-list .money-page-detail-panel,
+.demand-resource-page.is-list .money-page-detail-panel {
+  display: none;
+}
+
+.landing-page-resource.is-list .money-page-layout,
+.offer-resource-page.is-list .money-page-layout,
+.domain-resource-page.is-list .money-page-layout,
+.pwa-resource-page.is-list .money-page-layout,
+.demand-resource-page.is-list .money-page-layout {
+  display: block;
+}
+
+.landing-page-resource.is-list .money-filter-panel,
+.offer-resource-page.is-list .money-filter-panel,
+.domain-resource-page.is-list .domain-filter-panel,
+.pwa-resource-page.is-list .pwa-filter-panel {
+  margin-top: 0;
+}
+
 .report-list-page > .report-summary {
   display: none;
 }

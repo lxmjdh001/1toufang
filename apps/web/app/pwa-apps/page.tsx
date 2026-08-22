@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -219,6 +220,10 @@ function csvCell(value: unknown) {
 }
 
 export default function PwaAppsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<PwaRow[]>([]);
   const [landingPages, setLandingPages] = useState<LandingPageRow[]>([]);
   const [offers, setOffers] = useState<OfferRow[]>([]);
@@ -362,6 +367,10 @@ export default function PwaAppsPage() {
   }
 
   function edit(row: PwaRow) {
+    if (!createMode) {
+      router.push(`/pwa-apps/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setSelectedId(row.id);
     setDraft(draftFromRow(row));
@@ -431,15 +440,27 @@ export default function PwaAppsPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="PWA"
-      description="管理 PWA 应用配置、Manifest 字段、承接页/Offer/域名绑定和发布状态。"
+      title={createMode ? "创建 PWA" : "PWA"}
+      description={createMode ? "配置 PWA Manifest、承接页、Offer 和域名绑定。" : undefined}
+      breadcrumbs={[{ label: "PWA", href: "/pwa-apps" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            创建 PWA
-          </button>
+          {createMode ? <a className="button secondary" href="/pwa-apps">返回列表</a> : <a className="button primary" href="/pwa-apps/create">创建 PWA</a>}
           <button className="button secondary" onClick={exportCsv} type="button">
             导出
           </button>
@@ -449,7 +470,8 @@ export default function PwaAppsPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`pwa-resource-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics pwa-summary">
         <div className="metric metric-strong">
           <span>PWA 应用总数</span>
           <strong>{rows.length}</strong>
@@ -472,7 +494,7 @@ export default function PwaAppsPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="panel">
+      <section className="panel pwa-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑 PWA" : "创建 PWA"}</h2>
@@ -607,7 +629,7 @@ export default function PwaAppsPage() {
         </form>
       </section>
 
-      <section className="panel channel-filter-panel">
+      <section className="panel channel-filter-panel pwa-filter-panel">
         <div className="panel-heading">
           <div>
             <h2>筛选与字段</h2>
@@ -652,7 +674,7 @@ export default function PwaAppsPage() {
         </div>
       </section>
 
-      <section className="money-page-layout pwa-layout">
+      <section className="money-page-layout pwa-layout pwa-list-layout">
         <div>
           <section className="table-panel money-page-table-panel">
             <table className="money-page-table pwa-table">
@@ -821,6 +843,7 @@ export default function PwaAppsPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }

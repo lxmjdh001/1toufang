@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -116,6 +117,10 @@ function csvCell(value: unknown) {
 }
 
 export default function DomainsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<DomainRow[]>([]);
   const [landingPages, setLandingPages] = useState<LandingPageRow[]>([]);
   const [draft, setDraft] = useState<DomainDraft>(emptyDraft);
@@ -262,6 +267,10 @@ export default function DomainsPage() {
   }
 
   function edit(row: DomainRow) {
+    if (!createMode) {
+      router.push(`/domains/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setSelectedId(row.id);
     setDraft(draftFromRow(row));
@@ -318,15 +327,27 @@ export default function DomainsPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="域名"
-      description="管理自定义域名、购买请求、DNS/SSL 状态和 Money Page 绑定。"
+      title={createMode ? "新增域名" : "域名"}
+      description={createMode ? "绑定域名、维护 DNS/SSL 状态和落地页关联。" : undefined}
+      breadcrumbs={[{ label: "Domains", href: "/domains" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            新增域名
-          </button>
+          {createMode ? <a className="button secondary" href="/domains">返回列表</a> : <a className="button primary" href="/domains/create">新增域名</a>}
           <button className="button secondary" onClick={exportCsv} type="button">
             导出
           </button>
@@ -336,7 +357,8 @@ export default function DomainsPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`domain-resource-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics domain-summary">
         <div className="metric metric-strong">
           <span>域名总数</span>
           <strong>{rows.length}</strong>
@@ -359,7 +381,7 @@ export default function DomainsPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="panel">
+      <section className="panel domain-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑域名" : "Buy domain / 绑定域名"}</h2>
@@ -443,7 +465,7 @@ export default function DomainsPage() {
         </form>
       </section>
 
-      <section className="panel channel-filter-panel">
+      <section className="panel channel-filter-panel domain-filter-panel">
         <div className="panel-heading">
           <div>
             <h2>筛选与字段</h2>
@@ -499,7 +521,7 @@ export default function DomainsPage() {
         </div>
       </section>
 
-      <section className="money-page-layout domain-layout">
+      <section className="money-page-layout domain-layout domain-list-layout">
         <div>
           <section className="table-panel money-page-table-panel">
             <table className="money-page-table domain-table">
@@ -637,6 +659,7 @@ export default function DomainsPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }

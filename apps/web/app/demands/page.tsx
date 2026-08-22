@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -207,6 +208,10 @@ function csvCell(value: unknown) {
 }
 
 export default function DemandsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<DemandRow[]>([]);
   const [landingPages, setLandingPages] = useState<LandingPageRow[]>([]);
   const [offers, setOffers] = useState<OfferRow[]>([]);
@@ -341,6 +346,10 @@ export default function DemandsPage() {
   }
 
   function edit(row: DemandRow) {
+    if (!createMode) {
+      router.push(`/demands/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setSelectedId(row.id);
     setDraft(draftFromRow(row));
@@ -405,15 +414,27 @@ export default function DemandsPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="需求池"
-      description="管理素材、文案、产品、落地页、PWA 和投放优化需求。"
+      title={createMode ? "创建 Demand" : "需求池"}
+      description={createMode ? "创建并关联落地页、Offer、PWA 和投放优化需求。" : undefined}
+      breadcrumbs={[{ label: "Demand", href: "/demands" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            创建 Demand
-          </button>
+          {createMode ? <a className="button secondary" href="/demands">返回列表</a> : <a className="button primary" href="/demands/create">创建 Demand</a>}
           <button className="button secondary" onClick={exportCsv} type="button">
             导出
           </button>
@@ -423,7 +444,8 @@ export default function DemandsPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`demand-resource-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics demand-summary">
         <div className="metric metric-strong">
           <span>需求总数</span>
           <strong>{rows.length}</strong>
@@ -446,7 +468,7 @@ export default function DemandsPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="panel">
+      <section className="panel demand-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑需求" : "创建需求"}</h2>
@@ -566,7 +588,7 @@ export default function DemandsPage() {
         </form>
       </section>
 
-      <section className="resource-tabs">
+      <section className="resource-tabs demand-status-tabs">
         {statusTabs.map((tab) => (
           <button className={activeStatus === tab.key ? "active" : ""} key={tab.key} onClick={() => setActiveStatus(tab.key)} type="button">
             <span>{tab.label}</span>
@@ -575,7 +597,7 @@ export default function DemandsPage() {
         ))}
       </section>
 
-      <section className="money-page-layout demand-layout">
+      <section className="money-page-layout demand-layout demand-list-layout">
         <div>
           <section className="panel money-filter-panel">
             <div className="form-grid">
@@ -753,6 +775,7 @@ export default function DemandsPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }

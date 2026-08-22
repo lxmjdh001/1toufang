@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -115,6 +116,10 @@ function csvCell(value: unknown) {
 }
 
 export default function LandingPagesPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<LandingPageRow[]>([]);
   const [copywritings, setCopywritings] = useState<CopywritingRow[]>([]);
   const [creatives, setCreatives] = useState<CreativeRow[]>([]);
@@ -220,6 +225,10 @@ export default function LandingPagesPage() {
   }
 
   function edit(row: LandingPageRow) {
+    if (!createMode) {
+      router.push(`/landing-pages/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setSelectedId(row.id);
     setDraft(draftFromRow(row));
@@ -278,15 +287,27 @@ export default function LandingPagesPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="落地页"
-      description="管理 Campaign 承接页、定位方向、文案创意关联和激活状态。"
+      title={createMode ? "创建 Landing Page" : "落地页"}
+      description={createMode ? "配置 Campaign 承接页、定位方向和创意关联。" : undefined}
+      breadcrumbs={[{ label: "Landing Pages", href: "/landing-pages" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            创建 Landing Page
-          </button>
+          {createMode ? <a className="button secondary" href="/landing-pages">返回列表</a> : <a className="button primary" href="/landing-pages/create">创建 Landing Page</a>}
           <button className="button secondary" onClick={exportCsv} type="button">
             导出
           </button>
@@ -296,7 +317,8 @@ export default function LandingPagesPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`landing-page-resource ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics landing-summary">
         <div className="metric metric-strong">
           <span>Money Pages</span>
           <strong>{rows.length}</strong>
@@ -319,7 +341,7 @@ export default function LandingPagesPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="panel">
+      <section className="panel landing-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑 Money Page" : "创建 Landing Page"}</h2>
@@ -401,7 +423,7 @@ export default function LandingPagesPage() {
         </form>
       </section>
 
-      <section className="money-page-layout">
+      <section className="money-page-layout landing-list-layout">
         <div>
           <section className="panel money-filter-panel">
             <div className="form-grid">
@@ -542,6 +564,7 @@ export default function LandingPagesPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }

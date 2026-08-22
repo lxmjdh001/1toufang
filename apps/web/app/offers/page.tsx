@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -181,6 +182,10 @@ function csvCell(value: unknown) {
 }
 
 export default function OffersPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<OfferRow[]>([]);
   const [draft, setDraft] = useState<OfferDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -304,6 +309,10 @@ export default function OffersPage() {
   }
 
   function edit(row: OfferRow) {
+    if (!createMode) {
+      router.push(`/offers/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setSelectedId(row.id);
     setDraft(draftFromRow(row));
@@ -362,15 +371,27 @@ export default function OffersPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="推广项目"
-      description="管理产品 Offer、跳转地址、价格、素材图和 Campaign 关联。"
+      title={createMode ? "创建 Offer" : "推广项目"}
+      description={createMode ? "配置产品 Offer、跳转地址、价格和 Campaign 关联。" : undefined}
+      breadcrumbs={[{ label: "Offers", href: "/offers" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            创建 Offer
-          </button>
+          {createMode ? <a className="button secondary" href="/offers">返回列表</a> : <a className="button primary" href="/offers/create">创建 Offer</a>}
           <button className="button secondary" onClick={exportCsv} type="button">
             导出
           </button>
@@ -380,7 +401,8 @@ export default function OffersPage() {
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`offer-resource-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics offer-summary">
         <div className="metric metric-strong">
           <span>推广项目总数</span>
           <strong>{rows.length}</strong>
@@ -426,7 +448,7 @@ export default function OffersPage() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel offer-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑 Offer" : "创建 Offer"}</h2>
@@ -512,7 +534,7 @@ export default function OffersPage() {
         </form>
       </section>
 
-      <section className="resource-tabs">
+      <section className="resource-tabs offer-view-tabs">
         {viewTabs.map((tab) => (
           <button className={activeView === tab.key ? "active" : ""} key={tab.key} onClick={() => setActiveView(tab.key)} type="button">
             <span>{tab.label}</span>
@@ -521,7 +543,7 @@ export default function OffersPage() {
         ))}
       </section>
 
-      <section className="money-page-layout offer-layout">
+      <section className="money-page-layout offer-layout offer-list-layout">
         <div>
           <section className="panel money-filter-panel">
             <div className="form-grid">
@@ -688,6 +710,7 @@ export default function OffersPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }
