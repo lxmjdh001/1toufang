@@ -71,8 +71,12 @@ button:disabled {
 
 .semi-admin-sider .semi-layout-sider-children {
   background: #0b1220;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   min-height: 100dvh;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .semi-admin-brand {
@@ -129,6 +133,7 @@ button:disabled {
   flex: 1 1 auto;
   height: calc(100dvh - 72px);
   min-height: 0;
+  overflow: hidden;
   padding: 12px 10px 16px;
   width: 100%;
 }
@@ -149,11 +154,27 @@ button:disabled {
   width: 100%;
 }
 
+.semi-admin-nav .semi-navigation-inner {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.semi-admin-nav .semi-navigation-header-list-outer {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
 .semi-admin-nav .semi-navigation-list-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   padding-top: 0;
   scrollbar-color: rgb(148 163 184 / 36%) transparent;
+  scrollbar-width: thin;
 }
 
 .semi-admin-nav .semi-navigation-item,
@@ -3941,10 +3962,18 @@ tbody tr:hover {
   .semi-admin-sider .semi-layout-sider-children {
     height: auto;
     min-height: auto;
+    overflow: visible;
   }
 
   .semi-admin-nav.semi-navigation {
     height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .semi-admin-nav .semi-navigation-inner,
+  .semi-admin-nav .semi-navigation-list-wrapper {
+    overflow: visible;
   }
 
   .semi-admin-header {
