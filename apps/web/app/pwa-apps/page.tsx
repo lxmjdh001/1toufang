@@ -451,7 +451,7 @@ export default function PwaAppsPage() {
     >
       <section className="metric-grid compact-metrics">
         <div className="metric metric-strong">
-          <span>PWA Apps</span>
+          <span>PWA 应用总数</span>
           <strong>{rows.length}</strong>
         </div>
         <div className="metric">
@@ -459,7 +459,7 @@ export default function PwaAppsPage() {
           <strong>{activeCount}</strong>
         </div>
         <div className="metric">
-          <span>Published / Active</span>
+          <span>已发布 / 已启用</span>
           <strong>{publishedCount}</strong>
         </div>
         <div className="metric">
@@ -476,7 +476,7 @@ export default function PwaAppsPage() {
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑 PWA" : "创建 PWA"}</h2>
-            <p>先维护 Manifest 和承接资源，后续可接入自动打包、发布和站点缓存策略。</p>
+            <p>先维护应用清单和承接资源，后续可接入自动打包、发布和站点缓存策略。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -500,11 +500,11 @@ export default function PwaAppsPage() {
             <div className="field">
               <label htmlFor="pwaStatus">状态</label>
               <select id="pwaStatus" onChange={(event) => updateDraft("status", event.target.value)} value={draft.status}>
-                <option value="draft">Draft</option>
-                <option value="testing">Testing</option>
-                <option value="published">Published</option>
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
+                <option value="draft">草稿</option>
+                <option value="testing">测试中</option>
+                <option value="published">已发布</option>
+                <option value="active">已启用</option>
+                <option value="archived">已归档</option>
               </select>
             </div>
             <div className="field">
@@ -544,7 +544,7 @@ export default function PwaAppsPage() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="pwaLandingPage">Money Page</label>
+              <label htmlFor="pwaLandingPage">落地页</label>
               <select id="pwaLandingPage" onChange={(event) => updateDraft("landingPageId", event.target.value)} value={draft.landingPageId}>
                 <option value="">不绑定</option>
                 {landingPages.map((row) => (
@@ -555,7 +555,7 @@ export default function PwaAppsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="pwaOffer">Offer</label>
+              <label htmlFor="pwaOffer">推广项目</label>
               <select id="pwaOffer" onChange={(event) => updateDraft("offerId", event.target.value)} value={draft.offerId}>
                 <option value="">不绑定</option>
                 {offers.map((row) => (
@@ -635,8 +635,8 @@ export default function PwaAppsPage() {
             <label htmlFor="pwaBindingFilter">绑定</label>
             <select id="pwaBindingFilter" onChange={(event) => setBindingFilter(event.target.value)} value={bindingFilter}>
               <option value="">全部绑定</option>
-              <option value="landingPage">已绑定 Money Page</option>
-              <option value="offer">已绑定 Offer</option>
+                  <option value="landingPage">已绑定落地页</option>
+                  <option value="offer">已绑定推广项目</option>
               <option value="domain">已绑定域名</option>
               <option value="unbound">未绑定</option>
             </select>
@@ -662,8 +662,8 @@ export default function PwaAppsPage() {
                   {visibleFields.includes("name") ? <th>名称</th> : null}
                   {visibleFields.includes("status") ? <th>状态</th> : null}
                   {visibleFields.includes("startUrl") ? <th>启动地址</th> : null}
-                  {visibleFields.includes("landingPage") ? <th>Money Page</th> : null}
-                  {visibleFields.includes("offer") ? <th>Offer</th> : null}
+                  {visibleFields.includes("landingPage") ? <th>落地页</th> : null}
+                  {visibleFields.includes("offer") ? <th>推广项目</th> : null}
                   {visibleFields.includes("domain") ? <th>域名</th> : null}
                   {visibleFields.includes("display") ? <th>显示模式</th> : null}
                   {visibleFields.includes("colors") ? <th>颜色</th> : null}
@@ -791,7 +791,7 @@ export default function PwaAppsPage() {
                     <strong>{selectedPwa.config?.active ?? selectedPwa.status !== "inactive" ? selectedPwa.status : "inactive"}</strong>
                   </div>
                   <div>
-                    <span>Money Page / Offer</span>
+                    <span>落地页 / 推广项目</span>
                     <strong>
                       {landingPageName(selectedPwa.config?.landingPageId)} / {offerName(selectedPwa.config?.offerId)}
                     </strong>
@@ -801,7 +801,7 @@ export default function PwaAppsPage() {
                     <strong>{domainName(selectedPwa.config?.domainId)}</strong>
                   </div>
                   <div>
-                    <span>已用于 Campaign</span>
+                    <span>已用于广告系列</span>
                     <strong>{selectedPwa.usageCount ?? 0}</strong>
                   </div>
                 </div>

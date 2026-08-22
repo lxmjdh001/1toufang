@@ -57,8 +57,8 @@ export class UpdateWorkspaceRecordDto {
 }
 
 export class WorkspaceRecordActionDto {
-  @ApiProperty({ enum: ["activate", "pause", "run", "send", "fetch_reviews", "approve", "reject", "pay", "archive", "restore", "duplicate"] })
+  @ApiProperty({ enum: ["submit", "activate", "pause", "run", "send", "fetch_reviews", "approve", "reject", "pay", "archive", "restore", "duplicate"] })
   @IsString()
-  @IsIn(["activate", "pause", "run", "send", "fetch_reviews", "approve", "reject", "pay", "archive", "restore", "duplicate"])
+  @IsIn(["submit", "activate", "pause", "run", "send", "fetch_reviews", "approve", "reject", "pay", "archive", "restore", "duplicate"])
   action: string;
 }

@@ -3572,6 +3572,63 @@ tbody tr:hover {
   font-size: 22px;
 }
 
+.workspace-flow {
+  align-items: stretch;
+  counter-reset: workflow-step;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.workspace-flow li {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  gap: 9px;
+  min-height: 46px;
+  padding: 8px 10px;
+  position: relative;
+}
+
+.workspace-flow li:not(:last-child)::after {
+  border-right: 1px solid var(--border-strong);
+  border-top: 1px solid var(--border-strong);
+  content: "";
+  height: 7px;
+  position: absolute;
+  right: -5px;
+  transform: rotate(45deg);
+  width: 7px;
+  z-index: 1;
+}
+
+.workspace-flow li > span {
+  align-items: center;
+  background: #e8f1ff;
+  border-radius: 999px;
+  color: var(--primary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 900;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.workspace-flow strong {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .workspace-table-panel {
   min-width: 0;
   overflow: hidden;
@@ -3679,6 +3736,14 @@ tbody tr:hover {
 }
 
 @media (max-width: 680px) {
+  .workspace-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-flow li:nth-child(2)::after {
+    display: none;
+  }
+
   .workspace-toolbar {
     width: 100%;
   }

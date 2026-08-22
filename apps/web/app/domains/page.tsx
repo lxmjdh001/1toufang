@@ -342,15 +342,15 @@ export default function DomainsPage() {
           <strong>{rows.length}</strong>
         </div>
         <div className="metric">
-          <span>Verified / Active</span>
+          <span>已验证 / 已启用</span>
           <strong>{verifiedCount}</strong>
         </div>
         <div className="metric">
-          <span>Pending / Purchased</span>
+          <span>待处理 / 已购买</span>
           <strong>{pendingCount}</strong>
         </div>
         <div className="metric">
-          <span>已用于 Campaign</span>
+          <span>已用于广告系列</span>
           <strong>{usedCount}</strong>
         </div>
       </section>
@@ -363,7 +363,7 @@ export default function DomainsPage() {
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑域名" : "Buy domain / 绑定域名"}</h2>
-            <p>Buy domain 会记录购买请求；已有域名可直接绑定并维护解析、SSL 状态。</p>
+            <p>购买域名会记录购买请求；已有域名可直接绑定并维护解析、SSL 状态。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -383,34 +383,34 @@ export default function DomainsPage() {
             <div className="field">
               <label htmlFor="domainStatus">状态</label>
               <select id="domainStatus" onChange={(event) => updateDraft("status", event.target.value)} value={draft.status}>
-                <option value="pending">Pending</option>
-                <option value="purchased">Purchased</option>
-                <option value="verified">Verified</option>
-                <option value="active">Active</option>
-                <option value="failed">Failed</option>
+                <option value="pending">待处理</option>
+                <option value="purchased">已购买</option>
+                <option value="verified">已验证</option>
+                <option value="active">已启用</option>
+                <option value="failed">失败</option>
               </select>
             </div>
             <div className="field">
               <label htmlFor="domainDnsStatus">DNS</label>
               <select id="domainDnsStatus" onChange={(event) => updateDraft("dnsStatus", event.target.value)} value={draft.dnsStatus}>
-                <option value="pending">Pending</option>
-                <option value="checking">Checking</option>
-                <option value="verified">Verified</option>
-                <option value="failed">Failed</option>
+                <option value="pending">待处理</option>
+                <option value="checking">检查中</option>
+                <option value="verified">已验证</option>
+                <option value="failed">失败</option>
               </select>
             </div>
             <div className="field">
               <label htmlFor="domainSslStatus">SSL</label>
               <select id="domainSslStatus" onChange={(event) => updateDraft("sslStatus", event.target.value)} value={draft.sslStatus}>
-                <option value="pending">Pending</option>
-                <option value="checking">Checking</option>
-                <option value="issued">Issued</option>
-                <option value="failed">Failed</option>
-                <option value="expired">Expired</option>
+                <option value="pending">待处理</option>
+                <option value="checking">检查中</option>
+                <option value="issued">已签发</option>
+                <option value="failed">失败</option>
+                <option value="expired">已过期</option>
               </select>
             </div>
             <div className="field">
-              <label htmlFor="domainLandingPage">Money Page</label>
+            <label htmlFor="domainLandingPage">落地页</label>
               <select id="domainLandingPage" onChange={(event) => updateDraft("landingPageId", event.target.value)} value={draft.landingPageId}>
                 <option value="">不绑定</option>
                 {landingPages.map((row) => (
@@ -510,7 +510,7 @@ export default function DomainsPage() {
                   {visibleFields.includes("status") ? <th>状态</th> : null}
                   {visibleFields.includes("dnsStatus") ? <th>DNS</th> : null}
                   {visibleFields.includes("sslStatus") ? <th>SSL</th> : null}
-                  {visibleFields.includes("landingPage") ? <th>Money Page</th> : null}
+                  {visibleFields.includes("landingPage") ? <th>落地页</th> : null}
                   {visibleFields.includes("usageCount") ? <th>使用数</th> : null}
                   {visibleFields.includes("updatedAt") ? <th>更新时间</th> : null}
                   {visibleFields.includes("notes") ? <th>备注</th> : null}
@@ -587,7 +587,7 @@ export default function DomainsPage() {
             <div className="panel-heading">
               <div>
                 <h2>域名详情</h2>
-                <p>查看解析、SSL 和 Campaign 使用情况。</p>
+                <p>查看解析、SSL 和广告系列使用情况。</p>
               </div>
             </div>
             {selectedDomain ? (
@@ -614,11 +614,11 @@ export default function DomainsPage() {
                     </strong>
                   </div>
                   <div>
-                    <span>Money Page</span>
+                    <span>落地页</span>
                     <strong>{landingPageName(selectedDomain.config?.landingPageId)}</strong>
                   </div>
                   <div>
-                    <span>已用于 Campaign</span>
+                    <span>已用于广告系列</span>
                     <strong>{selectedDomain.usageCount ?? 0}</strong>
                   </div>
                 </div>

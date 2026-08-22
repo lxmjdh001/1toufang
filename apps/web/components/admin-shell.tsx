@@ -156,7 +156,8 @@ const sections = [
       { href: "/stores", label: "店铺", permissions: ["campaigns.create"] },
       { href: "/tools", label: "工具", permissions: ["campaigns.create"] },
       { href: "/optimizers", label: "优化器", permissions: ["campaigns.create"] },
-      { href: "/copilot", label: "Copilot", permissions: ["campaigns.create"] }
+      { href: "/copilot", label: "Copilot", permissions: ["campaigns.create"] },
+      { href: "/newsletter", label: "Newsletter", permissions: ["campaigns.create"] }
     ]
   },
   {
@@ -166,8 +167,7 @@ const sections = [
     links: [
       { href: "/analytics", label: "访客分析", permissions: ["reports.view"] },
       { href: "/conversions", label: "转化事件", permissions: ["reports.view"] },
-      { href: "/billings", label: "账单", permissions: ["campaigns.create"] },
-      { href: "/newsletter", label: "Newsletter", permissions: ["campaigns.create"] }
+      { href: "/billings", label: "账单", permissions: ["campaigns.create"] }
     ]
   },
   {

@@ -417,7 +417,7 @@ export default function CreativesPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>{editingId ? "编辑创意" : "New ad creative"}</h2>
+            <h2>{editingId ? "编辑创意" : "新建广告创意"}</h2>
             <p>创意会在 Campaign 创建和后续发布中复用。</p>
           </div>
         </div>
@@ -556,7 +556,7 @@ export default function CreativesPage() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="creativeNewTag">Create Tag / 批量打标</label>
+            <label htmlFor="creativeNewTag">新建标签 / 批量打标</label>
             <div className="inline-control">
               <input id="creativeNewTag" onChange={(event) => setNewTag(event.target.value)} value={newTag} />
               <button className="button secondary" onClick={() => void bulkTag()} type="button">
@@ -603,9 +603,9 @@ export default function CreativesPage() {
                     {row.tags.length ? row.tags.map((tag) => <span key={tag}>{tag}</span>) : <span>未打标签</span>}
                   </div>
                   <div className="creative-metrics">
-                    <span>Spend {formatMoney(metric.spend)}</span>
-                    <span>CTR {formatMoney(metric.ctr)}%</span>
-                    <span>CV {formatNumber(metric.conversions)}</span>
+                    <span>消耗 {formatMoney(metric.spend)}</span>
+                    <span>点击率 {formatMoney(metric.ctr)}%</span>
+                    <span>转化 {formatNumber(metric.conversions)}</span>
                   </div>
                   <div className="row-actions">
                     <button className="button secondary" onClick={() => edit(row)} type="button">

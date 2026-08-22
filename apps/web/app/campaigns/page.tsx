@@ -1369,8 +1369,8 @@ export default function CampaignsPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>新建 Campaign</h2>
-            <p>Campaign 保存后进入发布队列，可先预检再提交官方渠道。</p>
+            <h2>新建广告系列</h2>
+            <p>广告系列保存后进入发布队列，可先预检再提交官方渠道。</p>
           </div>
           <button className="button secondary" onClick={randName} type="button">
             生成名称
@@ -1402,7 +1402,7 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="field campaign-name-field">
-              <label htmlFor="campaignName">Campaign 名称</label>
+              <label htmlFor="campaignName">广告系列名称</label>
               <input
                 id="campaignName"
                 onChange={(event) => updateDraft("name", event.target.value)}
@@ -1506,7 +1506,7 @@ export default function CampaignsPage() {
               <label htmlFor="campaignOffer">推广项目</label>
               <div className="inline-control">
                 <select id="campaignOffer" onChange={(event) => updateDraft("offerId", event.target.value)} required value={draft.offerId}>
-                  <option value="">选择 Offer</option>
+                  <option value="">选择推广项目</option>
                   {offers.map((row) => (
                     <option key={row.id} value={row.id}>
                       {row.name}
@@ -1594,7 +1594,7 @@ export default function CampaignsPage() {
             {draft.adSetupMode === "CREATE_CREATIVE" ? (
               <div className="field creative-picker-field">
                 <label>广告创意</label>
-                <div className="selected-item">创建 Campaign 时生成创意</div>
+                <div className="selected-item">创建广告系列时生成创意</div>
                 <a className="button secondary compact-link-button" href="/creatives">
                   新建
                 </a>
@@ -2105,7 +2105,7 @@ export default function CampaignsPage() {
             {visibleCampaigns.length === 0 && !loading ? (
               <tbody>
                 <tr>
-                  <td colSpan={tableColSpan}>暂无 Campaign</td>
+                  <td colSpan={tableColSpan}>暂无广告系列</td>
                 </tr>
               </tbody>
             ) : null}

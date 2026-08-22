@@ -280,7 +280,7 @@ export default function LandingPagesPage() {
 
   return (
     <AdminShell
-      title="Money Pages"
+      title="落地页"
       description="管理 Campaign 承接页、定位方向、文案创意关联和激活状态。"
       actions={
         <div className="button-row">
@@ -306,7 +306,7 @@ export default function LandingPagesPage() {
           <strong>{activeCount}</strong>
         </div>
         <div className="metric">
-          <span>已用于 Campaign</span>
+          <span>已用于广告系列</span>
           <strong>{usedCount}</strong>
         </div>
         <div className="metric">
@@ -323,7 +323,7 @@ export default function LandingPagesPage() {
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑 Money Page" : "创建 Landing Page"}</h2>
-            <p>Money Page 会在 Campaign 创建时作为承接页选择。</p>
+            <p>落地页会在广告系列创建时作为承接页选择。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -347,10 +347,10 @@ export default function LandingPagesPage() {
             <div className="field">
               <label htmlFor="pageStatus">状态</label>
               <select id="pageStatus" onChange={(event) => updateDraft("status", event.target.value)} value={draft.status}>
-                <option value="ready">Ready</option>
-                <option value="draft">Draft</option>
-                <option value="testing">Testing</option>
-                <option value="archived">Archived</option>
+                <option value="ready">可投放</option>
+                <option value="draft">草稿</option>
+                <option value="testing">测试中</option>
+                <option value="archived">已归档</option>
               </select>
             </div>
             <div className="field">
@@ -413,11 +413,11 @@ export default function LandingPagesPage() {
                 <label htmlFor="pageStatusFilter">状态</label>
                 <select id="pageStatusFilter" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
                   <option value="">全部状态</option>
-                  <option value="ready">Ready</option>
-                  <option value="draft">Draft</option>
-                  <option value="testing">Testing</option>
+                  <option value="ready">可投放</option>
+                  <option value="draft">草稿</option>
+                  <option value="testing">测试中</option>
                   <option value="inactive">Inactive</option>
-                  <option value="archived">Archived</option>
+                  <option value="archived">已归档</option>
                 </select>
               </div>
             </div>
@@ -499,8 +499,8 @@ export default function LandingPagesPage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <h2>Money Page 详情</h2>
-                <p>查看承接页状态和 Campaign 使用情况。</p>
+                <h2>落地页详情</h2>
+                <p>查看承接页状态和广告系列使用情况。</p>
               </div>
             </div>
             {selectedPage ? (
@@ -523,7 +523,7 @@ export default function LandingPagesPage() {
                     <strong>{selectedPage.config?.active ?? selectedPage.status !== "inactive" ? selectedPage.status : "inactive"}</strong>
                   </div>
                   <div>
-                    <span>已用于 Campaign</span>
+                    <span>已用于广告系列</span>
                     <strong>{selectedPage.usageCount ?? 0}</strong>
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export default function LandingPagesPage() {
                 </div>
               </div>
             ) : (
-              <div className="empty-state compact-empty">请选择 Money Page</div>
+              <div className="empty-state compact-empty">请选择落地页</div>
             )}
           </section>
         </aside>

@@ -177,19 +177,19 @@ export default function ConversionsPage() {
     >
       <section className="metric-grid compact-metrics">
         <div className="metric metric-strong">
-          <span>Conversions</span>
+          <span>转化总数</span>
           <strong>{rows.length}</strong>
         </div>
         <div className="metric">
-          <span>Confirmed</span>
+          <span>已确认</span>
           <strong>{confirmedCount}</strong>
         </div>
         <div className="metric">
-          <span>Pending</span>
+          <span>待处理</span>
           <strong>{pendingCount}</strong>
         </div>
         <div className="metric">
-          <span>Value</span>
+          <span>转化金额</span>
           <strong>${formatMoney(totalValue)}</strong>
         </div>
       </section>
@@ -204,7 +204,7 @@ export default function ConversionsPage() {
             <input id="conversionSearch" onChange={(event) => setSearch(event.target.value)} value={search} />
           </div>
           <div className="field">
-            <label htmlFor="conversionLandingPage">Money Page</label>
+            <label htmlFor="conversionLandingPage">落地页</label>
             <select id="conversionLandingPage" onChange={(event) => setLandingPageFilter(event.target.value)} value={landingPageFilter}>
               <option value="">全部</option>
               {landingPages.map((row) => (
@@ -215,7 +215,7 @@ export default function ConversionsPage() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="conversionOffer">Offer</label>
+            <label htmlFor="conversionOffer">推广项目</label>
             <select id="conversionOffer" onChange={(event) => setOfferFilter(event.target.value)} value={offerFilter}>
               <option value="">全部</option>
               {offers.map((row) => (
@@ -231,7 +231,7 @@ export default function ConversionsPage() {
       <section className="table-panel">
         <div className="table-header">
           <div>
-            <strong>Conversion 列表</strong>
+            <strong>转化列表</strong>
             <br />
             <span className="muted">最多展示最近 500 条记录</span>
           </div>
@@ -239,16 +239,16 @@ export default function ConversionsPage() {
         <table className="conversion-table">
           <thead>
             <tr>
-              <th>Request ID</th>
+              <th>请求编号</th>
               <th>事件</th>
               <th>金额</th>
               <th>状态</th>
-              <th>Campaign / Ad Set</th>
-              <th>落地页 / Offer</th>
+              <th>广告系列 / 广告组</th>
+              <th>落地页 / 推广项目</th>
               <th>访客</th>
-              <th>Referrer</th>
+              <th>来源页</th>
               <th>反馈</th>
-              <th>Converted At</th>
+              <th>转化时间</th>
             </tr>
           </thead>
           <tbody>

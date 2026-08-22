@@ -205,7 +205,7 @@ export default function IntegrationsPage() {
               </button>
             </div>
             <div className="field">
-              <label htmlFor="oauthAuthorizationLink">Authorization Link</label>
+              <label htmlFor="oauthAuthorizationLink">授权链接</label>
               <input
                 id="oauthAuthorizationLink"
                 onFocus={(event) => event.currentTarget.select()}

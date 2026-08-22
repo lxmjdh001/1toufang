@@ -51,12 +51,13 @@ function statusLabel(status: string, options: Array<{ value: string; label: stri
 function statusClass(status: string) {
   if (["active", "sent", "running", "approved", "paid"].includes(status)) return "pill success";
   if (["paused", "pending"].includes(status)) return "pill warning";
-  if (["archived", "failed"].includes(status)) return "pill danger";
+  if (["archived", "failed", "rejected"].includes(status)) return "pill danger";
   return "pill";
 }
 
 function actionLabel(action: string) {
   const labels: Record<string, string> = {
+    submit: "提交审核",
     run: "执行",
     send: "发送",
     fetch_reviews: "同步评论",
@@ -69,6 +70,38 @@ function actionLabel(action: string) {
     restore: "恢复"
   };
   return labels[action] ?? action;
+}
+
+function workflowSteps(module: string) {
+  const steps: Record<string, string[]> = {
+    optimizer: ["配置规则", "启用规则", "执行规则", "查看结果"],
+    copilot: ["配置助手", "保存草稿", "启用助手", "关联页面"],
+    store: ["添加店铺", "配置同步", "启用店铺", "同步评论"],
+    tool: ["选择工具", "填写来源", "启用任务", "执行并查看结果"],
+    newsletter: ["创建草稿", "填写内容", "发送", "归档"],
+    billing: ["创建账单", "核对金额", "标记支付", "归档"],
+    "referral-link": ["创建链接", "设置佣金", "启用推广", "查看归因"],
+    commission: ["生成佣金", "审核确认", "执行支付", "完成结算"],
+    withdrawal: ["提交申请", "审核申请", "执行打款", "完成提现"],
+    vcc: ["填写申请", "提交审核", "审核开通", "启用或停用"]
+  };
+  return steps[module] ?? ["新建配置", "保存", "执行", "查看结果"];
+}
+
+function actionAvailable(module: string, status: string, action: string) {
+  const allowed: Record<string, Record<string, string[]>> = {
+    optimizer: { activate: ["draft", "paused"], pause: ["active"], run: ["active"] },
+    copilot: { activate: ["draft", "paused"], pause: ["active"] },
+    store: { activate: ["draft", "paused"], pause: ["active"], fetch_reviews: ["active"] },
+    tool: { activate: ["draft", "paused"], pause: ["active"], run: ["active"] },
+    newsletter: { send: ["draft"], archive: ["draft", "sent"] },
+    billing: { pay: ["pending", "failed"], archive: ["paid", "failed"] },
+    "referral-link": { activate: ["draft", "paused"], pause: ["active"], archive: ["draft", "paused", "active"] },
+    commission: { approve: ["pending"], reject: ["pending"], pay: ["approved"] },
+    withdrawal: { approve: ["pending"], reject: ["pending"], pay: ["approved"] },
+    vcc: { submit: ["draft"], approve: ["pending"], activate: ["paused"], pause: ["active"] }
+  };
+  return allowed[module]?.[action]?.includes(status) ?? true;
 }
 
 function valueText(value: unknown) {
@@ -222,6 +255,9 @@ export function WorkspaceRecordPage({
 
   return (
     <AdminShell title={title} description={description} actions={<button className="button primary" onClick={startCreate} type="button">+ 新建</button>}>
+      <ol className="workspace-flow" aria-label={`${title}使用流程`}>
+        {workflowSteps(module).map((step, index) => <li key={step}><span>{index + 1}</span><strong>{step}</strong></li>)}
+      </ol>
       <div className="metric-grid compact-metrics workspace-metrics">
         <div className="metric"><span>全部</span><strong>{rows.length}</strong><small>当前工作区记录</small></div>
         <div className="metric"><span>已启用</span><strong>{rows.filter((row) => row.status === "active").length}</strong><small>正在执行或可用</small></div>
@@ -254,7 +290,7 @@ export function WorkspaceRecordPage({
                       <td><div className="workspace-summary">{fields.slice(0, 3).map((field) => <span key={field.key}>{field.label}：{valueText(row.config?.[field.key])}</span>)}<span>{actionSummary(row)}</span></div></td>
                       <td><span className={statusClass(row.status)}>{statusLabel(row.status, statusOptions)}</span></td>
                       <td className="workspace-nowrap">{formatDate(row.updatedAt)}</td>
-                      <td><div className="workspace-row-actions"><button className="button small" onClick={() => startEdit(row)} type="button">编辑</button><button className="button small" disabled={busyId === row.id} onClick={() => runAction(row.id, "duplicate")} type="button">复制</button>{actions.map((action) => <button className="button small" disabled={busyId === row.id} key={action} onClick={() => runAction(row.id, action)} type="button">{actionLabel(action)}</button>)}<button className="button small danger-button" disabled={busyId === row.id} onClick={() => remove(row.id)} type="button">删除</button></div></td>
+                      <td><div className="workspace-row-actions"><button className="button small" onClick={() => startEdit(row)} type="button">编辑</button><button className="button small" disabled={busyId === row.id} onClick={() => runAction(row.id, "duplicate")} type="button">复制</button>{actions.filter((action) => actionAvailable(module, row.status, action)).map((action) => <button className="button small" disabled={busyId === row.id} key={action} onClick={() => runAction(row.id, action)} type="button">{actionLabel(action)}</button>)}<button className="button small danger-button" disabled={busyId === row.id} onClick={() => remove(row.id)} type="button">删除</button></div></td>
                     </tr>
                   ))}
                 </tbody>

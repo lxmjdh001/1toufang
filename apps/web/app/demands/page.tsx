@@ -102,12 +102,12 @@ const emptyDraft: DemandDraft = {
 
 const statusTabs: Array<{ key: StatusView; label: string }> = [
   { key: "all", label: "全部" },
-  { key: "backlog", label: "Backlog" },
-  { key: "planned", label: "Planned" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "review", label: "Review" },
-  { key: "done", label: "Done" },
-  { key: "rejected", label: "Rejected" }
+  { key: "backlog", label: "待规划" },
+  { key: "planned", label: "已规划" },
+  { key: "in_progress", label: "进行中" },
+  { key: "review", label: "待审核" },
+  { key: "done", label: "已完成" },
+  { key: "rejected", label: "已驳回" }
 ];
 
 const typeOptions = [
@@ -425,7 +425,7 @@ export default function DemandsPage() {
     >
       <section className="metric-grid compact-metrics">
         <div className="metric metric-strong">
-          <span>Demands</span>
+          <span>需求总数</span>
           <strong>{rows.length}</strong>
         </div>
         <div className="metric">
@@ -437,7 +437,7 @@ export default function DemandsPage() {
           <strong>{urgentCount}</strong>
         </div>
         <div className="metric">
-          <span>Done</span>
+          <span>已完成</span>
           <strong>{doneCount}</strong>
         </div>
       </section>
@@ -449,7 +449,7 @@ export default function DemandsPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <h2>{editingId ? "编辑 Demand" : "创建 Demand"}</h2>
+            <h2>{editingId ? "编辑需求" : "创建需求"}</h2>
             <p>把素材、产品、落地页和自动化想法收敛到统一需求池。</p>
           </div>
         </div>
@@ -504,7 +504,7 @@ export default function DemandsPage() {
               <input id="demandSource" onChange={(event) => updateDraft("source", event.target.value)} value={draft.source} />
             </div>
             <div className="field">
-              <label htmlFor="demandLandingPage">Money Page</label>
+              <label htmlFor="demandLandingPage">落地页</label>
               <select id="demandLandingPage" onChange={(event) => updateDraft("landingPageId", event.target.value)} value={draft.landingPageId}>
                 <option value="">不关联</option>
                 {landingPages.map((row) => (
@@ -515,7 +515,7 @@ export default function DemandsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="demandOffer">Offer</label>
+              <label htmlFor="demandOffer">推广项目</label>
               <select id="demandOffer" onChange={(event) => updateDraft("offerId", event.target.value)} value={draft.offerId}>
                 <option value="">不关联</option>
                 {offers.map((row) => (
@@ -685,7 +685,7 @@ export default function DemandsPage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <h2>Demand 详情</h2>
+                <h2>需求详情</h2>
                 <p>查看需求说明、期望产出和流转信息。</p>
               </div>
             </div>

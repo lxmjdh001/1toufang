@@ -242,7 +242,7 @@ export default function AnalyticsPage() {
           <div className="panel-heading">
             <div>
               <h2>筛选</h2>
-              <p>按 Request ID、项目、IP、客户端、落地页和 Offer 查询。</p>
+              <p>按请求编号、项目、IP、客户端、落地页和推广项目查询。</p>
             </div>
           </div>
           <div className="form-grid">
@@ -251,7 +251,7 @@ export default function AnalyticsPage() {
               <input id="visitorSearch" onChange={(event) => setSearch(event.target.value)} value={search} />
             </div>
             <div className="field">
-              <label htmlFor="visitorLandingPage">Money Page</label>
+            <label htmlFor="visitorLandingPage">落地页</label>
               <select id="visitorLandingPage" onChange={(event) => setLandingPageFilter(event.target.value)} value={landingPageFilter}>
                 <option value="">全部</option>
                 {landingPages.map((row) => (
@@ -262,7 +262,7 @@ export default function AnalyticsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="visitorOffer">Offer</label>
+            <label htmlFor="visitorOffer">推广项目</label>
               <select id="visitorOffer" onChange={(event) => setOfferFilter(event.target.value)} value={offerFilter}>
                 <option value="">全部</option>
                 {offers.map((row) => (
@@ -287,19 +287,19 @@ export default function AnalyticsPage() {
         <table className="analytics-table">
           <thead>
             <tr>
-              <th>Request ID</th>
+              <th>请求编号</th>
               <th>项目</th>
-              <th>Campaign / Ad Set</th>
-              <th>落地页 / Offer</th>
+              <th>广告系列 / 广告组</th>
+              <th>落地页 / 推广项目</th>
               <th>IP</th>
               <th>客户端</th>
-              <th>Referrer</th>
+              <th>来源页</th>
               <th>事件1/2/3</th>
               <th>点击成本</th>
               <th>转化率</th>
               <th>转化数</th>
               <th>反馈</th>
-              <th>Visit At</th>
+              <th>访问时间</th>
             </tr>
           </thead>
           <tbody>

@@ -316,7 +316,7 @@ export default function CopywritingsPage() {
       actions={
         <div className="button-row">
           <button className="button primary" onClick={() => void generateCopy()} type="button">
-            AI Generate
+            固定模型生成
           </button>
           <button className="button secondary" onClick={resetForm} type="button">
             新增文案
@@ -354,7 +354,7 @@ export default function CopywritingsPage() {
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <h2>AI Generate</h2>
+              <h2>固定模型生成</h2>
               <p>当前使用固定模板自动化生成，后续可替换为真实 AI 优化模型。</p>
             </div>
           </div>
@@ -369,7 +369,7 @@ export default function CopywritingsPage() {
                 <input id="aiAudience" onChange={(event) => updateAiDraft("audience", event.target.value)} value={aiDraft.audience} />
               </div>
               <div className="field">
-                <label htmlFor="aiOffer">Offer</label>
+                <label htmlFor="aiOffer">推广项目</label>
                 <input id="aiOffer" onChange={(event) => updateAiDraft("offer", event.target.value)} value={aiDraft.offer} />
               </div>
               <div className="field">

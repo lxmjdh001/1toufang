@@ -73,6 +73,7 @@ export class WorkspaceRecordsService {
       return copy;
     }
     const statusByAction: Record<string, string> = {
+      submit: "pending",
       activate: "active",
       pause: "paused",
       run: "running",
@@ -119,6 +120,27 @@ export class WorkspaceRecordsService {
   }
 
   private assertWorkflowStep(module: string, status: string, action: string) {
+    const allowedByModule: Record<string, Record<string, string[]>> = {
+      optimizer: { activate: ["draft", "paused"], pause: ["active"], run: ["active"] },
+      copilot: { activate: ["draft", "paused"], pause: ["active"] },
+      store: { activate: ["draft", "paused"], pause: ["active"], fetch_reviews: ["active"] },
+      tool: { activate: ["draft", "paused"], pause: ["active"], run: ["active"] },
+      newsletter: { send: ["draft"], archive: ["draft", "sent"] },
+      billing: { pay: ["pending", "failed"], archive: ["paid", "failed"] },
+      "referral-link": { activate: ["draft", "paused"], pause: ["active"], archive: ["draft", "paused", "active"] },
+      commission: { approve: ["pending"], reject: ["pending"], pay: ["approved"] },
+      withdrawal: { approve: ["pending"], reject: ["pending"], pay: ["approved"] },
+      vcc: { submit: ["draft"], approve: ["pending"], activate: ["paused"], pause: ["active"] }
+    };
+    if (["duplicate", "restore"].includes(action)) return;
+    const moduleActions = allowedByModule[module];
+    if (moduleActions && !moduleActions[action]) {
+      throw new BadRequestException("该模块不支持此操作");
+    }
+    const allowedStatuses = moduleActions?.[action];
+    if (allowedStatuses && !allowedStatuses.includes(status)) {
+      throw new BadRequestException(`当前状态不能执行该操作：${status}`);
+    }
     if (module === "newsletter" && action === "send" && status !== "draft") {
       throw new BadRequestException("只有草稿可以发送");
     }

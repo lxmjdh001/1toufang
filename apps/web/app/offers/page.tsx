@@ -364,7 +364,7 @@ export default function OffersPage() {
 
   return (
     <AdminShell
-      title="Offers"
+      title="推广项目"
       description="管理产品 Offer、跳转地址、价格、素材图和 Campaign 关联。"
       actions={
         <div className="button-row">
@@ -382,21 +382,21 @@ export default function OffersPage() {
     >
       <section className="metric-grid compact-metrics">
         <div className="metric metric-strong">
-          <span>Offers</span>
+          <span>推广项目总数</span>
           <strong>{rows.length}</strong>
         </div>
         <div className="metric">
-          <span>Original / Generated</span>
+          <span>原始 / 模板</span>
           <strong>
             {originalCount} / {generatedCount}
           </strong>
         </div>
         <div className="metric">
-          <span>Ready</span>
+          <span>可投放</span>
           <strong>{readyCount}</strong>
         </div>
         <div className="metric">
-          <span>已用于 Campaign</span>
+          <span>已用于广告系列</span>
           <strong>{usedCount}</strong>
         </div>
       </section>
@@ -408,8 +408,8 @@ export default function OffersPage() {
       <section className="panel offer-network-panel">
         <div className="panel-heading">
           <div>
-            <h2>Find Networks & Offers</h2>
-            <p>先用固定模型模板填充 Offer，后续可以替换为真实联盟网络或 AI 推荐。</p>
+          <h2>查找联盟与推广项目</h2>
+          <p>先用固定模型模板填充推广项目，后续可以替换为真实联盟网络或 AI 推荐。</p>
           </div>
         </div>
         <div className="offer-network-grid">
@@ -430,7 +430,7 @@ export default function OffersPage() {
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑 Offer" : "创建 Offer"}</h2>
-            <p>Campaign 创建时会从这里选择产品 Offer。</p>
+          <p>创建广告系列时会从这里选择推广项目。</p>
           </div>
         </div>
         <form className="form" onSubmit={onSubmit}>
@@ -465,14 +465,14 @@ export default function OffersPage() {
             <div className="field">
               <label htmlFor="offerStatus">状态</label>
               <select id="offerStatus" onChange={(event) => updateDraft("status", event.target.value)} value={draft.status}>
-                <option value="ready">Ready</option>
-                <option value="testing">Testing</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
+                <option value="ready">可投放</option>
+                <option value="testing">测试中</option>
+                <option value="draft">草稿</option>
+                <option value="archived">已归档</option>
               </select>
             </div>
             <div className="field">
-              <label htmlFor="offerNetwork">Network</label>
+                <label htmlFor="offerNetwork">联盟网络</label>
               <input id="offerNetwork" onChange={(event) => updateDraft("network", event.target.value)} value={draft.network} />
             </div>
             <div className="field">
@@ -486,8 +486,8 @@ export default function OffersPage() {
             <div className="field">
               <label htmlFor="offerSource">视图</label>
               <select id="offerSource" onChange={(event) => updateDraft("source", event.target.value as OfferSource)} value={draft.source}>
-                <option value="original">Original</option>
-                <option value="generated">Generated</option>
+                <option value="original">原始项目</option>
+                <option value="generated">模板生成</option>
               </select>
             </div>
             <label className="check-field" htmlFor="offerActive">
@@ -533,11 +533,11 @@ export default function OffersPage() {
                 <label htmlFor="offerStatusFilter">状态</label>
                 <select id="offerStatusFilter" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
                   <option value="">全部状态</option>
-                  <option value="ready">Ready</option>
-                  <option value="testing">Testing</option>
-                  <option value="draft">Draft</option>
+                <option value="ready">可投放</option>
+                <option value="testing">测试中</option>
+                <option value="draft">草稿</option>
                   <option value="inactive">Inactive</option>
-                  <option value="archived">Archived</option>
+                <option value="archived">已归档</option>
                 </select>
               </div>
             </div>
@@ -630,8 +630,8 @@ export default function OffersPage() {
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <h2>Offer 详情</h2>
-                <p>查看产品状态和 Campaign 使用情况。</p>
+                <h2>推广项目详情</h2>
+                <p>查看产品状态和广告系列使用情况。</p>
               </div>
             </div>
             {selectedOffer ? (
@@ -669,7 +669,7 @@ export default function OffersPage() {
                     <strong>{selectedOffer.config?.active ?? selectedOffer.status !== "inactive" ? selectedOffer.status : "inactive"}</strong>
                   </div>
                   <div>
-                    <span>已用于 Campaign</span>
+                    <span>已用于广告系列</span>
                     <strong>{selectedOffer.usageCount ?? 0}</strong>
                   </div>
                 </div>
@@ -683,7 +683,7 @@ export default function OffersPage() {
                 </div>
               </div>
             ) : (
-              <div className="empty-state compact-empty">请选择 Offer</div>
+              <div className="empty-state compact-empty">请选择推广项目</div>
             )}
           </section>
         </aside>

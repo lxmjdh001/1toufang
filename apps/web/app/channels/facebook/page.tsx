@@ -460,7 +460,7 @@ export default function FacebookChannelPage() {
               </button>
             </div>
             <div className="field">
-              <label htmlFor="facebookOauthAuthorizationLink">Authorization Link</label>
+              <label htmlFor="facebookOauthAuthorizationLink">授权链接</label>
               <input
                 id="facebookOauthAuthorizationLink"
                 onFocus={(event) => event.currentTarget.select()}
