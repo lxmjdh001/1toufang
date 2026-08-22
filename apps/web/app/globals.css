@@ -270,6 +270,246 @@ button:disabled {
   color: #e2e8f0;
 }
 
+/* Peer-style workspace shell: global navigation stays horizontal, while each
+   module gets its own scrollable secondary navigation and content workspace. */
+.peer-admin-layout {
+  background: #f6f8fb;
+  min-height: 100dvh;
+}
+
+.peer-global-header {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #e4eaf2;
+  display: flex;
+  gap: 22px;
+  height: 64px;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.peer-brand {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 194px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.peer-brand:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--primary);
+  outline-offset: 5px;
+}
+
+.peer-brand strong,
+.peer-brand span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.peer-brand strong {
+  color: #182230;
+  font-size: 16px;
+}
+
+.peer-brand span {
+  color: #98a2b3;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.peer-global-nav {
+  align-items: stretch;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 4px;
+  height: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.peer-global-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.peer-global-nav-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #667085;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 7px;
+  justify-content: center;
+  min-width: 76px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.peer-global-nav-item svg {
+  font-size: 16px;
+}
+
+.peer-global-nav-item:hover {
+  color: #175cd3;
+}
+
+.peer-global-nav-item.active {
+  border-bottom-color: var(--primary);
+  color: #175cd3;
+}
+
+.peer-global-spacer {
+  flex: 0 0 14px;
+}
+
+.peer-admin-main {
+  min-width: 0;
+}
+
+.peer-admin-main > .semi-admin-header {
+  background: #fff;
+  height: 60px;
+  padding: 0 28px;
+}
+
+.peer-breadcrumb {
+  align-items: center;
+  color: #98a2b3;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.peer-breadcrumb button {
+  background: transparent;
+  border: 0;
+  color: #667085;
+  cursor: pointer;
+  padding: 0;
+}
+
+.peer-breadcrumb button:hover {
+  color: var(--primary);
+}
+
+.peer-breadcrumb strong {
+  color: #344054;
+  font-weight: 700;
+}
+
+.peer-page-layout {
+  align-items: start;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 188px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.peer-page-layout.without-submenu {
+  display: block;
+}
+
+.peer-submenu {
+  background: #fff;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  max-height: calc(100dvh - 168px);
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px 8px;
+  position: sticky;
+  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-width: thin;
+  top: 148px;
+}
+
+.peer-submenu-group + .peer-submenu-group {
+  border-top: 1px solid #eef2f6;
+  margin-top: 9px;
+  padding-top: 9px;
+}
+
+.peer-submenu-label {
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 5px 10px 6px;
+  text-transform: uppercase;
+}
+
+.peer-submenu-items {
+  display: grid;
+  gap: 2px;
+}
+
+.peer-submenu-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #667085;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 650;
+  justify-content: space-between;
+  min-height: 36px;
+  overflow: hidden;
+  padding: 0 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.peer-submenu-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.peer-submenu-item i {
+  background: var(--primary);
+  border-radius: 999px;
+  display: block;
+  flex: 0 0 4px;
+  height: 4px;
+  width: 4px;
+}
+
+.peer-submenu-item:hover {
+  background: #f2f6fb;
+  color: #175cd3;
+}
+
+.peer-submenu-item.active {
+  background: #edf4ff;
+  color: #175cd3;
+  font-weight: 800;
+}
+
+.peer-page-content {
+  min-width: 0;
+}
+
+.peer-page-content > :first-child {
+  margin-top: 0;
+}
+
 .semi-admin-nav .semi-navigation-sub-title:focus-visible,
 .semi-admin-nav .semi-navigation-item:focus-visible {
   outline: 2px solid rgb(96 165 250 / 72%);
@@ -4029,6 +4269,78 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
+  .peer-global-header {
+    gap: 12px;
+    height: 58px;
+    padding: 0 14px;
+  }
+
+  .peer-brand {
+    flex-basis: 132px;
+  }
+
+  .peer-brand .semi-admin-logo {
+    height: 32px;
+    width: 32px;
+  }
+
+  .peer-brand span {
+    display: none;
+  }
+
+  .peer-global-nav-item {
+    min-width: 66px;
+    padding: 0 7px;
+  }
+
+  .peer-global-nav-item svg {
+    display: none;
+  }
+
+  .peer-admin-main > .semi-admin-header {
+    padding: 12px 14px;
+  }
+
+  .peer-page-layout {
+    display: block;
+  }
+
+  .peer-submenu {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px;
+    position: static;
+    white-space: nowrap;
+  }
+
+  .peer-submenu-group,
+  .peer-submenu-group + .peer-submenu-group {
+    border: 0;
+    display: flex;
+    margin: 0;
+    padding: 0;
+  }
+
+  .peer-submenu-label {
+    align-items: center;
+    display: flex;
+    padding: 0 8px;
+  }
+
+  .peer-submenu-items {
+    display: flex;
+  }
+
+  .peer-submenu-item {
+    min-height: 34px;
+    padding: 0 10px;
+    width: auto;
+  }
+
   .admin-content,
   .main {
     padding: 20px;

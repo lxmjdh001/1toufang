@@ -11,7 +11,7 @@ import {
   IconSend,
   IconSetting
 } from "@douyinfe/semi-icons";
-import { Avatar, Button, Layout, Nav, Spin } from "@douyinfe/semi-ui-19";
+import { Avatar, Button, Spin } from "@douyinfe/semi-ui-19";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { apiRequest, clearAuthTokens, getAccessToken } from "../lib/api";
@@ -194,12 +194,142 @@ const sections = [
   }
 ];
 
+type PeerSubmenu = {
+  label: string;
+  href: string;
+  permissions?: string[];
+};
+
+type PeerSubmenuGroup = {
+  label?: string;
+  items: PeerSubmenu[];
+};
+
+const peerMainNav = [
+  { key: "workspace", label: "控制面板", href: "/dashboard", icon: <IconHome /> },
+  { key: "campaigns", label: "广告系列", href: "/campaigns", icon: <IconSend /> },
+  { key: "channels", label: "渠道", href: "/channels/facebook", icon: <IconGlobe /> },
+  { key: "media", label: "素材库", href: "/media-assets", icon: <IconGallery /> },
+  { key: "resources", label: "资源", href: "/strategies", icon: <IconSetting /> },
+  { key: "reports", label: "报告", href: "/analytics", icon: <IconHome /> },
+  { key: "referral", label: "推广返佣", href: "/referral-links", icon: <IconSend /> },
+  { key: "system", label: "系统管理", href: "/admin/users", icon: <IconSetting />, permissions: ["users.manage"] }
+];
+
+const peerSubmenus: Record<string, PeerSubmenuGroup[]> = {
+  workspace: [{ items: [{ label: "控制面板", href: "/dashboard", permissions: ["reports.view"] }] }],
+  campaigns: [{ items: [{ label: "广告系列", href: "/campaigns", permissions: ["campaigns.create"] }] }],
+  channels: [
+    {
+      label: "Facebook",
+      items: [
+        { label: "广告账户", href: "/channels/facebook?resource=ad_accounts", permissions: ["ad_accounts.view"] },
+        { label: "商务管理平台", href: "/channels/facebook?resource=business_managers", permissions: ["ad_accounts.view"] },
+        { label: "主页", href: "/channels/facebook?resource=pages", permissions: ["ad_accounts.view"] },
+        { label: "像素", href: "/channels/facebook?resource=pixels", permissions: ["ad_accounts.view"] },
+        { label: "应用", href: "/channels/facebook?resource=apps", permissions: ["ad_accounts.view"] }
+      ]
+    },
+    {
+      label: "TikTok",
+      items: [
+        { label: "账户", href: "/channels/tiktok?resource=accounts", permissions: ["ad_accounts.view"] },
+        { label: "商务中心", href: "/channels/tiktok?resource=business_centers", permissions: ["ad_accounts.view"] },
+        { label: "广告主", href: "/channels/tiktok?resource=advertisers", permissions: ["ad_accounts.view"] },
+        { label: "Catalog", href: "/channels/tiktok?resource=catalogs", permissions: ["ad_accounts.view"] },
+        { label: "Feed", href: "/channels/tiktok?resource=feeds", permissions: ["ad_accounts.view"] },
+        { label: "商品", href: "/channels/tiktok?resource=products", permissions: ["ad_accounts.view"] },
+        { label: "App", href: "/channels/tiktok?resource=apps", permissions: ["ad_accounts.view"] }
+      ]
+    },
+    {
+      label: "资产",
+      items: [
+        { label: "渠道授权", href: "/integrations", permissions: ["ad_accounts.view"] },
+        { label: "广告账户总览", href: "/ad-accounts", permissions: ["ad_accounts.view"] },
+        { label: "渠道资产", href: "/platform-assets", permissions: ["ad_accounts.view"] }
+      ]
+    }
+  ],
+  media: [
+    {
+      items: [
+        { label: "素材库", href: "/media-assets", permissions: ["media.manage"] },
+        { label: "文案库", href: "/copywritings", permissions: ["copywriting.manage"] },
+        { label: "创意库", href: "/creatives", permissions: ["media.manage", "copywriting.manage"] }
+      ]
+    }
+  ],
+  resources: [
+    {
+      items: [
+        { label: "策略模板", href: "/strategies", permissions: ["strategies.manage"] },
+        { label: "受众库", href: "/targetings", permissions: ["targeting.manage"] },
+        { label: "落地页", href: "/landing-pages", permissions: ["campaigns.create"] },
+        { label: "推广项目", href: "/offers", permissions: ["campaigns.create"] },
+        { label: "域名", href: "/domains", permissions: ["campaigns.create"] },
+        { label: "需求池", href: "/demands", permissions: ["campaigns.create"] },
+        { label: "店铺", href: "/stores", permissions: ["campaigns.create"] },
+        { label: "工具", href: "/tools", permissions: ["campaigns.create"] },
+        { label: "优化器", href: "/optimizers", permissions: ["campaigns.create"] },
+        { label: "Copilot", href: "/copilot", permissions: ["campaigns.create"] },
+        { label: "Newsletter", href: "/newsletter", permissions: ["campaigns.create"] }
+      ]
+    }
+  ],
+  reports: [
+    {
+      items: [
+        { label: "Analytics", href: "/analytics", permissions: ["reports.view"] },
+        { label: "Conversions", href: "/conversions", permissions: ["reports.view"] },
+        { label: "账单", href: "/billings", permissions: ["campaigns.create"] }
+      ]
+    }
+  ],
+  referral: [
+    {
+      items: [
+        { label: "推荐链接", href: "/referral-links", permissions: ["campaigns.create"] },
+        { label: "佣金", href: "/commissions", permissions: ["campaigns.create"] },
+        { label: "提现", href: "/withdrawals", permissions: ["campaigns.create"] }
+      ]
+    }
+  ],
+  system: [
+    {
+      items: [
+        { label: "系统用户", href: "/admin/users", permissions: ["users.manage"] },
+        { label: "团队管理", href: "/admin/teams", permissions: ["users.manage"] },
+        { label: "员工管理", href: "/admin/employees", permissions: ["employees.manage"] },
+        { label: "权限角色", href: "/admin/permissions", permissions: ["roles.manage"] },
+        { label: "开发者密钥", href: "/admin/platform-configs", permissions: ["system.config.manage"] }
+      ]
+    }
+  ]
+};
+
+function hrefPath(href: string) {
+  return href.split("?")[0];
+}
+
+function isPeerSubmenuActive(href: string, pathname: string) {
+  const [path, query] = href.split("?");
+  if (path !== pathname) return false;
+  const expectedResource = query ? new URLSearchParams(query).get("resource") : null;
+  if (!expectedResource) return true;
+  const currentResource =
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("resource") : null;
+  if (currentResource) return currentResource === expectedResource;
+  if (path === "/channels/facebook") return expectedResource === "ad_accounts";
+  if (path === "/channels/tiktok") return expectedResource === "advertisers";
+  return false;
+}
+
 export function AdminShell({ title, description, actions, children }: AdminShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(() => getCachedMe(getAccessToken()));
   const [authChecked, setAuthChecked] = useState(() => Boolean(getCachedMe(getAccessToken())));
-  const [openKeys, setOpenKeys] = useState<Array<string | number>>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -209,37 +339,12 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   const [notificationsAcknowledged, setNotificationsAcknowledged] = useState(false);
   const [language, setLanguage] = useState("ZH");
 
-  const activeKey = useMemo(() => {
-    const links = sections.flatMap((section) => section.links);
-    return links.find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))?.href;
-  }, [pathname]);
-
   const activeSectionKey = useMemo(
     () =>
       sections.find((section) =>
         section.links.some((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))
       )?.key ?? "workspace",
     [pathname]
-  );
-
-  const navItems = useMemo(
-    () => {
-      const granted = new Set(me?.permissionCodes ?? []);
-      return sections
-        .map((section) => ({
-          itemKey: section.key,
-          text: section.label,
-          icon: section.icon,
-          items: section.links
-            .filter((link) => link.permissions.every((permission) => granted.has(permission)))
-            .map((link) => ({
-              itemKey: link.href,
-              text: link.label
-            }))
-        }))
-        .filter((section) => section.items.length > 0);
-    },
-    [me?.permissionCodes]
   );
 
   useEffect(() => {
@@ -277,16 +382,6 @@ export function AdminShell({ title, description, actions, children }: AdminShell
         }
       });
   }, [router]);
-
-  useEffect(() => {
-    setOpenKeys((current) => {
-      if (current.includes(activeSectionKey)) {
-        return current;
-      }
-
-      return current.length ? [...current, activeSectionKey] : [activeSectionKey];
-    });
-  }, [activeSectionKey]);
 
   useEffect(() => {
     if (!authChecked || !me) return;
@@ -395,6 +490,18 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   const unreadCount = notificationsAcknowledged
     ? 0
     : notifications.filter((item) => item.severity !== "info").length;
+  const grantedPermissions = new Set(me?.permissionCodes ?? []);
+  const visibleMainNav = peerMainNav.filter(
+    (item) => !item.permissions || item.permissions.every((permission) => grantedPermissions.has(permission))
+  );
+  const visibleSubmenuGroups = (peerSubmenus[activeSectionKey] ?? [])
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.permissions || item.permissions.every((permission) => grantedPermissions.has(permission))
+      )
+    }))
+    .filter((group) => group.items.length > 0);
 
   if (!authChecked && !me) {
     return (
@@ -407,37 +514,35 @@ export function AdminShell({ title, description, actions, children }: AdminShell
   }
 
   return (
-    <Layout className="semi-admin-layout">
-      <Layout.Sider className="semi-admin-sider">
-        <div className="semi-admin-brand">
+    <div className="peer-admin-layout">
+      <header className="peer-global-header">
+        <div className="peer-brand" onClick={() => router.push("/dashboard")} role="button" tabIndex={0}>
           <div className="semi-admin-logo">WZ</div>
           <div>
             <strong>WzzAds</strong>
             <span>广告运营中台</span>
           </div>
         </div>
-        <Nav
-          bodyStyle={{ background: "transparent" }}
-          className="semi-admin-nav"
-          items={navItems}
-          limitIndent
-          mode="vertical"
-          onOpenChange={({ openKeys: nextOpenKeys }) => {
-            setOpenKeys(nextOpenKeys ?? []);
-          }}
-          onSelect={({ itemKey }) => {
-            if (typeof itemKey === "string" && itemKey.startsWith("/")) {
-              router.prefetch(itemKey);
-              router.push(itemKey);
-            }
-          }}
-          openKeys={openKeys}
-          selectedKeys={activeKey ? [activeKey] : []}
-          subNavMotion
-        />
-      </Layout.Sider>
-      <Layout className="semi-admin-main">
-        <Layout.Header className="semi-admin-header">
+        <nav aria-label="主导航" className="peer-global-nav">
+          {visibleMainNav.map((item) => (
+            <button
+              className={`peer-global-nav-item ${activeSectionKey === item.key ? "active" : ""}`}
+              key={item.key}
+              onClick={() => {
+                router.prefetch(item.href);
+                router.push(item.href);
+              }}
+              type="button"
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="peer-global-spacer" />
+      </header>
+      <div className="peer-admin-main">
+        <header className="semi-admin-header">
           <div className="semi-admin-header-left">
             <form className="global-search" onSubmit={submitSearch}>
               <IconSearch />
@@ -545,8 +650,15 @@ export function AdminShell({ title, description, actions, children }: AdminShell
               退出登录
             </Button>
           </div>
-        </Layout.Header>
-        <Layout.Content className="admin-content semi-admin-content">
+        </header>
+        <main className="admin-content semi-admin-content">
+          <div className="peer-breadcrumb">
+            <button onClick={() => router.push("/dashboard")} type="button">控制台</button>
+            <span>/</span>
+            <span>{peerMainNav.find((item) => item.key === activeSectionKey)?.label ?? "工作区"}</span>
+            <span>/</span>
+            <strong>{title}</strong>
+          </div>
           <div className="page-heading semi-page-heading">
             <div>
               <h1>{title}</h1>
@@ -554,9 +666,39 @@ export function AdminShell({ title, description, actions, children }: AdminShell
             </div>
             {actions ? <div className="page-actions">{actions}</div> : null}
           </div>
-          {children}
-        </Layout.Content>
-      </Layout>
-    </Layout>
+          <div className={`peer-page-layout ${visibleSubmenuGroups.length ? "" : "without-submenu"}`}>
+            {visibleSubmenuGroups.length ? (
+              <aside aria-label="页面导航" className="peer-submenu">
+                {visibleSubmenuGroups.map((group, index) => (
+                  <div className="peer-submenu-group" key={`${group.label ?? "group"}-${index}`}>
+                    {group.label ? <div className="peer-submenu-label">{group.label}</div> : null}
+                    <div className="peer-submenu-items">
+                      {group.items.map((item) => {
+                        const active = isPeerSubmenuActive(item.href, pathname);
+                        return (
+                          <button
+                            className={`peer-submenu-item ${active ? "active" : ""}`}
+                            key={item.href}
+                            onClick={() => {
+                              router.prefetch(hrefPath(item.href));
+                              router.push(item.href);
+                            }}
+                            type="button"
+                          >
+                            <span>{item.label}</span>
+                            {active ? <i aria-hidden="true" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </aside>
+            ) : null}
+            <section className="peer-page-content">{children}</section>
+          </div>
+        </main>
+      </div>
+    </div>
   );
 }

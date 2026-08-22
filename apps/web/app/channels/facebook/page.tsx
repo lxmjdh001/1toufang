@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminShell } from "../../../components/admin-shell";
 import { apiRequest } from "../../../lib/api";
 
@@ -188,10 +189,15 @@ function csvCell(value: unknown) {
   return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
 }
 
-export default function FacebookChannelPage() {
+function FacebookChannelPageContent() {
+  const searchParams = useSearchParams();
+  const queryResource = searchParams.get("resource");
   const [data, setData] = useState<FacebookChannelResponse | null>(null);
   const [status, setStatus] = useState<StatusKey>("all");
-  const [resource, setResource] = useState("ad_accounts");
+  const [resource, setResource] = useState(() => {
+    if (typeof window === "undefined") return "ad_accounts";
+    return new URLSearchParams(window.location.search).get("resource") ?? "ad_accounts";
+  });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -394,6 +400,8 @@ export default function FacebookChannelPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const initialResource = params.get("resource") ?? "ad_accounts";
+    setResource(initialResource);
     if (params.get("oauth") === "success") {
       setNotice("Facebook 授权成功，连接已保存");
       window.history.replaceState(null, "", window.location.pathname);
@@ -402,8 +410,15 @@ export default function FacebookChannelPage() {
       setError(params.get("message") ?? "Facebook 授权失败");
       window.history.replaceState(null, "", window.location.pathname);
     }
-    void load();
+    void load("all", initialResource);
   }, []);
+
+  useEffect(() => {
+    if (!queryResource || queryResource === resource) return;
+    setResource(queryResource);
+    setAccountPage(1);
+    void load(status, queryResource);
+  }, [queryResource]);
 
   return (
     <AdminShell
@@ -710,6 +725,14 @@ export default function FacebookChannelPage() {
         </table>
       </section>
     </AdminShell>
+  );
+}
+
+export default function FacebookChannelPage() {
+  return (
+    <Suspense fallback={<main className="admin-loading"><div className="brand">WzzAds</div><p>正在加载 Facebook...</p></main>}>
+      <FacebookChannelPageContent />
+    </Suspense>
   );
 }
 

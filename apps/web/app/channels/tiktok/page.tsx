@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminShell } from "../../../components/admin-shell";
 import { apiRequest } from "../../../lib/api";
 
@@ -111,9 +112,14 @@ function csvCell(value: unknown) {
   return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
 }
 
-export default function TikTokChannelPage() {
+function TikTokChannelPageContent() {
+  const searchParams = useSearchParams();
+  const queryResource = searchParams.get("resource");
   const [data, setData] = useState<TikTokChannelResponse | null>(null);
-  const [resource, setResource] = useState("advertisers");
+  const [resource, setResource] = useState(() => {
+    if (typeof window === "undefined") return "advertisers";
+    return new URLSearchParams(window.location.search).get("resource") ?? "advertisers";
+  });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
@@ -253,6 +259,8 @@ export default function TikTokChannelPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const initialResource = params.get("resource") ?? "advertisers";
+    setResource(initialResource);
     if (params.get("oauth") === "success") {
       setNotice("TikTok 授权成功，连接已保存");
       window.history.replaceState(null, "", window.location.pathname);
@@ -261,8 +269,17 @@ export default function TikTokChannelPage() {
       setError(params.get("message") ?? "TikTok 授权失败");
       window.history.replaceState(null, "", window.location.pathname);
     }
-    void load();
+    void load(initialResource);
   }, []);
+
+  useEffect(() => {
+    if (!queryResource || queryResource === resource) return;
+    setResource(queryResource);
+    setSearch("");
+    setStatus("");
+    setResourcePage(1);
+    void load(queryResource);
+  }, [queryResource]);
 
   return (
     <AdminShell
@@ -509,6 +526,14 @@ export default function TikTokChannelPage() {
         </div>
       </section>
     </AdminShell>
+  );
+}
+
+export default function TikTokChannelPage() {
+  return (
+    <Suspense fallback={<main className="admin-loading"><div className="brand">WzzAds</div><p>正在加载 TikTok...</p></main>}>
+      <TikTokChannelPageContent />
+    </Suspense>
   );
 }
 
