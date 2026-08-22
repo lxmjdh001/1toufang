@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -156,6 +157,10 @@ function storeFolders(folders: string[]) {
 }
 
 export default function MediaAssetsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<MediaAssetRow[]>([]);
   const [draft, setDraft] = useState<MediaDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -287,6 +292,10 @@ export default function MediaAssetsPage() {
   }
 
   function edit(row: MediaAssetRow) {
+    if (!createMode) {
+      router.push(`/media-assets/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setDraft(draftFromRow(row));
     setSelectedId(row.id);
@@ -426,28 +435,39 @@ export default function MediaAssetsPage() {
   }, []);
 
   useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
+  useEffect(() => {
     setDraft((current) => ({ ...current, folderPath: editingId ? current.folderPath : activeFolder }));
   }, [activeFolder, editingId]);
 
   return (
     <AdminShell
-      title="素材库"
-      description="统一管理图片、视频、HTML 等广告素材资源，支持文件夹分组、上传、预览和详情管理。"
+      title={createMode ? "新增素材" : "素材库"}
+      description={createMode ? "上传或登记图片、视频、HTML 等广告素材。" : undefined}
+      breadcrumbs={[{ label: "Media Library", href: "/media-assets" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={createFolder} type="button">
-            创建文件夹
-          </button>
-          <button className="button secondary" onClick={resetForm} type="button">
-            新增素材
-          </button>
+          <button className="button primary" onClick={createFolder} type="button">创建文件夹</button>
+          {createMode ? <a className="button secondary" href="/media-assets">返回列表</a> : <a className="button secondary" href="/media-assets/create">上传素材</a>}
           <button className="button secondary" onClick={() => void load()} type="button">
             刷新
           </button>
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`asset-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics asset-summary">
         <div className="metric metric-strong">
           <span>素材总数</span>
           <strong>{rows.length}</strong>
@@ -508,7 +528,7 @@ export default function MediaAssetsPage() {
         </aside>
 
         <div className="asset-main">
-          <section className="panel">
+          <section className="panel asset-editor-panel">
             <div className="panel-heading">
               <div>
                 <h2>{editingId ? "编辑素材" : "上传/新增素材"}</h2>
@@ -580,7 +600,7 @@ export default function MediaAssetsPage() {
             </form>
           </section>
 
-          <section className="panel asset-browser">
+          <section className="panel asset-browser asset-browser-panel">
             <div className="panel-heading">
               <div>
                 <h2>{folderName(activeFolder)}</h2>
@@ -699,6 +719,7 @@ export default function MediaAssetsPage() {
           </div>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }

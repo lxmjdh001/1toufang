@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -238,6 +239,10 @@ function versionOf(row: StrategyRow) {
 }
 
 export default function StrategiesPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<StrategyRow[]>([]);
   const [draft, setDraft] = useState<StrategyDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -353,6 +358,10 @@ export default function StrategiesPage() {
   }
 
   function edit(row: StrategyRow) {
+    if (!createMode) {
+      router.push(`/strategies/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     setEditingId(row.id);
     setSelectedId(row.id);
     setDraft(draftFromRow(row));
@@ -406,22 +415,33 @@ export default function StrategiesPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="策略模板"
-      description="沉淀 Meta 和 TikTok 的预算、版位、出价、命名规则等投放模板。"
+      title={createMode ? "创建 Strategy" : "策略"}
+      description={createMode ? "配置可复用的 Meta 和 TikTok 投放策略模板。" : undefined}
+      breadcrumbs={[{ label: "Strategy", href: "/strategies" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            创建策略
-          </button>
-          <button className="button secondary" onClick={() => void load()} type="button">
-            刷新
-          </button>
+          {createMode ? <a className="button secondary" href="/strategies">返回列表</a> : <a className="button primary" href="/strategies/create">创建 strategy</a>}
+          <button className="button secondary" onClick={() => void load()} type="button">刷新</button>
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`strategy-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics strategy-summary">
         <div className="metric metric-strong">
           <span>模板总数</span>
           <strong>{rows.length}</strong>
@@ -444,7 +464,7 @@ export default function StrategiesPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="panel">
+      <section className="panel strategy-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑策略" : "创建策略"}</h2>
@@ -656,9 +676,16 @@ export default function StrategiesPage() {
         </form>
       </section>
 
-      <section className="strategy-layout">
+      <section className="strategy-layout strategy-list-layout">
         <div>
           <section className="panel strategy-filter-panel">
+            <div className="campaign-toolbar">
+              <div className="status-tabs">
+                <button className="status-tab active" type="button"><span>默认</span><strong>{visibleRows.length}</strong></button>
+                <button className="status-tab" type="button"><span>收藏</span><strong>0</strong></button>
+              </div>
+              <button className="button secondary" type="button">字段</button>
+            </div>
             <div className="form-grid">
               <div className="field">
                 <label htmlFor="strategySearch">搜索</label>
@@ -800,6 +827,7 @@ export default function StrategiesPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }

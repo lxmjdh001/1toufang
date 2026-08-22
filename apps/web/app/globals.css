@@ -3122,6 +3122,73 @@ button:disabled {
   margin-top: 20px;
 }
 
+.strategy-page.is-list > .strategy-summary,
+.targeting-page.is-list > .targeting-summary {
+  display: none;
+}
+
+.strategy-page.is-list > .strategy-create-panel,
+.targeting-page.is-list > .targeting-create-panel {
+  display: none;
+}
+
+.strategy-page.is-create > .strategy-list-layout,
+.targeting-page.is-create > .targeting-list-layout {
+  display: none;
+}
+
+.strategy-page.is-list .strategy-layout,
+.targeting-page.is-list .targeting-layout {
+  display: block;
+  margin-top: 0;
+}
+
+.strategy-page.is-list .strategy-detail-panel,
+.targeting-page.is-list .targeting-detail-panel {
+  display: none;
+}
+
+.strategy-page.is-list .strategy-filter-panel,
+.targeting-page.is-list .targeting-filter-panel {
+  margin-top: 0;
+}
+
+.strategy-page.is-create > .strategy-create-panel,
+.targeting-page.is-create > .targeting-create-panel {
+  margin-top: 0;
+}
+
+.strategy-page.is-list .campaign-toolbar,
+.targeting-page.is-list .campaign-toolbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.strategy-page.is-list .strategy-filter-panel .form-grid,
+.targeting-page.is-list .targeting-filter-panel > .form-grid {
+  grid-template-columns: minmax(240px, 420px) minmax(180px, 240px);
+}
+
+.asset-page.is-list > .asset-summary,
+.asset-page.is-list .asset-editor-panel {
+  display: none;
+}
+
+.asset-page.is-create .asset-browser-panel,
+.asset-page.is-create .asset-detail {
+  display: none;
+}
+
+.asset-page.is-create .asset-layout {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.asset-page.is-list .asset-layout {
+  margin-top: 0;
+}
+
 .strategy-table-panel {
   margin-top: 14px;
 }

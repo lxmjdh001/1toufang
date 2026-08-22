@@ -2,6 +2,7 @@
 
 import { IconChevronDown } from "@douyinfe/semi-icons";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AdminShell } from "../../components/admin-shell";
 import { apiRequest } from "../../lib/api";
 
@@ -642,6 +643,10 @@ function downloadAudienceTemplate() {
 }
 
 export default function TargetingsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const createMode = pathname.endsWith("/create");
+  const [editParam, setEditParam] = useState<string | null>(null);
   const [rows, setRows] = useState<TargetingRow[]>([]);
   const [draft, setDraft] = useState<TargetingDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -823,6 +828,10 @@ export default function TargetingsPage() {
   }
 
   function edit(row: TargetingRow) {
+    if (!createMode) {
+      router.push(`/targetings/create?edit=${encodeURIComponent(row.id)}`);
+      return;
+    }
     const nextDraft = draftFromRow(row);
     setEditingId(row.id);
     setSelectedId(row.id);
@@ -902,22 +911,34 @@ export default function TargetingsPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    setEditParam(new URLSearchParams(window.location.search).get("edit"));
+  }, []);
+
+  useEffect(() => {
+    if (!createMode || !editParam || editingId || !rows.length) return;
+    const row = rows.find((item) => item.id === editParam);
+    if (!row) return;
+    setEditingId(row.id);
+    setSelectedId(row.id);
+    setDraft(draftFromRow(row));
+    setAdvancedOpen(advancedConfigCount(draftFromRow(row)) > 0);
+  }, [createMode, editParam, editingId, rows]);
+
   return (
     <AdminShell
-      title="受众库"
-      description="统一维护兴趣、人群包、排除项、地域语言等可复用受众配置，并回流投放效果。"
+      title={createMode ? "创建 Targeting" : "受众"}
+      description={createMode ? "配置可复用的 Meta 和 TikTok 受众定向规则。" : undefined}
+      breadcrumbs={[{ label: "Targeting", href: "/targetings" }, { label: createMode ? "创建" : "列表" }]}
       actions={
         <div className="button-row">
-          <button className="button primary" onClick={resetForm} type="button">
-            创建受众
-          </button>
-          <button className="button secondary" onClick={() => void load()} type="button">
-            刷新
-          </button>
+          {createMode ? <a className="button secondary" href="/targetings">返回列表</a> : <a className="button primary" href="/targetings/create">创建 targeting</a>}
+          <button className="button secondary" onClick={() => void load()} type="button">刷新</button>
         </div>
       }
     >
-      <section className="metric-grid compact-metrics">
+      <div className={`targeting-page ${createMode ? "is-create" : "is-list"}`}>
+      <section className="metric-grid compact-metrics targeting-summary">
         <div className="metric metric-strong">
           <span>受众配置</span>
           <strong>{rows.length}</strong>
@@ -940,7 +961,7 @@ export default function TargetingsPage() {
       {notice ? <div className="notice success">{notice}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
 
-      <section className="panel">
+      <section className="panel targeting-create-panel">
         <div className="panel-heading">
           <div>
             <h2>{editingId ? "编辑受众" : "创建受众"}</h2>
@@ -1326,7 +1347,7 @@ export default function TargetingsPage() {
         </form>
       </section>
 
-      <section className="targeting-layout">
+      <section className="targeting-layout targeting-list-layout">
         <div>
           <section className="panel targeting-filter-panel">
             <div className="campaign-toolbar">
@@ -1502,6 +1523,7 @@ export default function TargetingsPage() {
           </section>
         </aside>
       </section>
+      </div>
     </AdminShell>
   );
 }
